@@ -1,1 +1,4 @@
-pub mod base_character;
+mod base_character;
+
+pub(crate) mod character;
+pub(crate) mod characters;

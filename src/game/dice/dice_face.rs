@@ -1,14 +1,14 @@
-#[derive(Clone, Copy)]
-pub(crate) enum DiceFace{
-    SHOOT_1,
-    SHOOT_2,
-    BEER,
-    ARROW,
-    DYNAMITE,
-    GATLING,
+#[derive(PartialEq, Eq, Clone, Copy)]
+pub(crate) enum DiceFace {
+    Shoot1,
+    Shoot2,
+    Beer,
+    Arrow,
+    Dynamite,
+    Gatling,
 
-    NON_BLOCKING_DYNAMITE,
-    HEALING_GATLING
-    // DOUBLE_SHOT
-    // DOUBLE_BEER
+    NonBlockingDynamite,
+    HealingGatling,
+    // DoubleShot
+    // DobleBeer
 }

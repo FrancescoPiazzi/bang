@@ -3,7 +3,6 @@ mod game;
 use crate::game::characters::character::Character;
 use crate::game::characters::characters::SuzieLafette;
 
-
 fn main() {
     let mut character = SuzieLafette::new(9);
 

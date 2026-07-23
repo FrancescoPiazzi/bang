@@ -10,9 +10,9 @@ pub(crate) struct DiceRoller {
     current_dice_state: Vec<DiceState>,
 }
 
-pub(crate) struct DiceRollResult {
-    faces: Vec<DiceFace>,
-}
+// TODO: if you wanna throw like a million dice for the hell of it
+// a hashmap DiceFace -> u16 would be MUCH lighter
+pub(crate) struct DiceRollResult (pub(crate) Vec<DiceFace>);
 
 impl DiceRoller {
     fn new(n_dice: usize, max_rerolls: u16) -> DiceRoller {
@@ -43,7 +43,7 @@ impl DiceRollResult {
     fn new(n_dice: usize) -> DiceRollResult {
         let mut faces: Vec<DiceFace> = Vec::new();
         faces.reserve(n_dice);
-        DiceRollResult { faces: faces }
+        DiceRollResult(faces)
     }
 }
 
@@ -51,12 +51,12 @@ impl Index<usize> for DiceRollResult {
     type Output = DiceFace;
 
     fn index(&self, index: usize) -> &Self::Output {
-        &self.faces[index]
+        &self.0[index]
     }
 }
 
 impl IndexMut<usize> for DiceRollResult {
     fn index_mut(&mut self, index: usize) -> &mut Self::Output {
-        &mut self.faces[index]
+        &mut self.0[index]
     }
 }

@@ -1,38 +1,66 @@
-use std::ops::Index;
-use std::ops::IndexMut;
+use std::collections::{HashMap, HashSet};
 
+use super::die::Die;
 use super::dice_face::DiceFace;
 use super::dice_state::DiceState;
 
 pub(crate) struct DiceRoller {
+    dice: Vec<Die>,
     n_dice: usize,
     max_rerolls: u16,
-    current_dice_state: Vec<DiceState>,
 }
 
-// TODO: if you wanna throw like a million dice for the hell of it
-// a hashmap DiceFace -> u16 would be MUCH lighter
-pub(crate) struct DiceRollResult (pub(crate) Vec<DiceFace>);
+
+pub(crate) struct DiceRollResult (pub(crate) HashMap<DiceFace, u16>);
 
 impl DiceRoller {
-    fn new(n_dice: usize, max_rerolls: u16) -> DiceRoller {
+    fn new(dice: Vec<HashSet<DiceFace>>, max_rerolls: u16) -> DiceRoller {
         DiceRoller {
-            n_dice: n_dice,
+            n_dice: dice.len(),
             max_rerolls: max_rerolls,
-            current_dice_state: Vec::new(),
+            dice: dice.into_iter().map(|faces| Die{faces: faces, state: None}).collect(),
         }
     }
 
-    fn throw(&self) -> DiceRollResult {
-        // TODO: this can be prettier
-        let mut result: DiceRollResult = DiceRollResult::new(self.n_dice);
+    fn throw_first(&mut self) -> DiceRollResult {
+        // TODO: it may be convinient to initialize every possible DiceFace to 0
+        // https://stackoverflow.com/questions/21371534/in-rust-is-there-a-way-to-iterate-through-the-values-of-an-enum
+        
+        let mut result: DiceRollResult = DiceRollResult::new();
 
-        for i in 0..self.n_dice {
-            result[i] = if self.current_dice_state[i].throwable {
-                DiceFace::Arrow // TODO rand
+        for die in self.dice.iter_mut() {
+            let roll_result = DiceFace::Arrow; // TODO rand.pick(current_dice_state[i].diceType)
+
+            die.state = Some(DiceState::new(roll_result));
+
+            result.0.entry(roll_result).and_modify(|count| *count+=1).or_insert(1);
+        }
+
+        return result;
+    }
+
+    fn throw_again(&mut self) -> DiceRollResult{
+        /*
+        if self.current_dice_state[i].throwable {
+            DiceFace::Arrow // TODO rand
+        } else {
+            self.current_dice_state[i].face
+        };
+         */
+        let mut result: DiceRollResult = DiceRollResult::new();
+
+        for die in self.dice.iter_mut() {
+            
+            if let Some(state) = &mut die.state {
+                let roll_result = DiceFace::Arrow; // TODO rand.pick(current_dice_state[i].diceType)
+
+                state.set_face(roll_result);
+
+                result.0.entry(roll_result).and_modify(|count| *count+=1).or_insert(1);
             } else {
-                self.current_dice_state[i].face
-            };
+                // TODO: logger.error("Unexpected: reroll requested for a die without a state")
+            }
+            
         }
 
         return result;
@@ -40,13 +68,12 @@ impl DiceRoller {
 }
 
 impl DiceRollResult {
-    fn new(n_dice: usize) -> DiceRollResult {
-        let mut faces: Vec<DiceFace> = Vec::new();
-        faces.reserve(n_dice);
-        DiceRollResult(faces)
+    fn new() -> DiceRollResult {
+        DiceRollResult(HashMap::new())
     }
 }
 
+/* 
 impl Index<usize> for DiceRollResult {
     type Output = DiceFace;
 
@@ -60,3 +87,4 @@ impl IndexMut<usize> for DiceRollResult {
         &mut self.0[index]
     }
 }
+*/

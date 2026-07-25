@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 
-use super::super::dice_face::DiceFace;
+use super::super::die_face::DiceFace;
 use super::super::dice_roller::DiceRollResult;
 
 pub(crate) trait DiceCombo {

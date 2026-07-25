@@ -1,11 +1,11 @@
 use std::collections::{HashMap, HashSet};
 
-use super::die::Die;
-use super::dice_face::DiceFace;
-use super::dice_state::DiceState;
+use super::die::StatedDie;
+use super::die_face::DiceFace;
+use super::die_state::DieState;
 
 pub(crate) struct DiceRoller {
-    dice: Vec<Die>,
+    dice: Vec<StatedDie>,
     n_dice: usize,
     max_rerolls: u16,
 }
@@ -18,7 +18,7 @@ impl DiceRoller {
         DiceRoller {
             n_dice: dice.len(),
             max_rerolls: max_rerolls,
-            dice: dice.into_iter().map(|faces| Die{faces: faces, state: None}).collect(),
+            dice: dice.into_iter().map(|faces| StatedDie{faces: faces, state: None}).collect(),
         }
     }
 
@@ -31,7 +31,7 @@ impl DiceRoller {
         for die in self.dice.iter_mut() {
             let roll_result = DiceFace::Arrow; // TODO rand.pick(current_dice_state[i].diceType)
 
-            die.state = Some(DiceState::new(roll_result));
+            die.state = Some(DieState::new(roll_result));
 
             result.0.entry(roll_result).and_modify(|count| *count+=1).or_insert(1);
         }
@@ -40,19 +40,17 @@ impl DiceRoller {
     }
 
     fn throw_again(&mut self) -> DiceRollResult{
-        /*
-        if self.current_dice_state[i].throwable {
-            DiceFace::Arrow // TODO rand
-        } else {
-            self.current_dice_state[i].face
-        };
-         */
+
         let mut result: DiceRollResult = DiceRollResult::new();
 
         for die in self.dice.iter_mut() {
             
             if let Some(state) = &mut die.state {
-                let roll_result = DiceFace::Arrow; // TODO rand.pick(current_dice_state[i].diceType)
+                let roll_result = if state.is_throwable() {
+                    DiceFace::Arrow // TODO rand.pick(current_dice_state[i].diceType)
+                } else {
+                    state.get_face()
+                };
 
                 state.set_face(roll_result);
 

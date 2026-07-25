@@ -1,10 +1,11 @@
 use std::collections::HashSet;
 
-use super::dice_face::DiceFace;
-use super::dice_state::DiceState;
+use super::die_face::DiceFace;
+use super::die_state::DieState;
 
 
-pub(crate) struct Die{
+/* A die with an optional state */
+pub(crate) struct StatedDie{
     pub(crate) faces: HashSet<DiceFace>, 
-    pub(crate) state: Option<DiceState>
+    pub(crate) state: Option<DieState>
 }

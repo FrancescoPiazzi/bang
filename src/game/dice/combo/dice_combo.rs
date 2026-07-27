@@ -49,21 +49,13 @@ mod tests {
         };
 
         let result1 = DiceRollResult {
-            0: HashMap::from([
-                (DiceFace::Dynamite, 3),
-                (DiceFace::Arrow, 1),
-                (DiceFace::Shoot1, 2),
-            ]),
+            0: HashMap::from([(DiceFace::Dynamite, 3), (DiceFace::Arrow, 1), (DiceFace::Shoot1, 2)]),
         };
         let result2 = DiceRollResult {
             0: HashMap::from([(DiceFace::Dynamite, 5), (DiceFace::Gatling, 1)]),
         };
         let result3 = DiceRollResult {
-            0: HashMap::from([
-                (DiceFace::Gatling, 3),
-                (DiceFace::Arrow, 1),
-                (DiceFace::Shoot1, 2),
-            ]),
+            0: HashMap::from([(DiceFace::Gatling, 3), (DiceFace::Arrow, 1), (DiceFace::Shoot1, 2)]),
         };
 
         assert_eq!(combo1.is_triggered(&result1), true);
@@ -78,40 +70,20 @@ mod tests {
     #[test]
     fn test_generic_combo() {
         let combo1 = GenericDiceCombo {
-            0: HashMap::from([
-                (DiceFace::Gatling, 1),
-                (DiceFace::Arrow, 1),
-                (DiceFace::Beer, 1),
-            ]),
+            0: HashMap::from([(DiceFace::Gatling, 1), (DiceFace::Arrow, 1), (DiceFace::Beer, 1)]),
         };
         let combo2 = GenericDiceCombo {
-            0: HashMap::from([
-                (DiceFace::Gatling, 3),
-                (DiceFace::Shoot1, 2),
-                (DiceFace::Shoot2, 1),
-            ]),
+            0: HashMap::from([(DiceFace::Gatling, 3), (DiceFace::Shoot1, 2), (DiceFace::Shoot2, 1)]),
         };
 
         let result1 = DiceRollResult {
-            0: HashMap::from([
-                (DiceFace::Arrow, 3),
-                (DiceFace::Beer, 1),
-                (DiceFace::Gatling, 2),
-            ]),
+            0: HashMap::from([(DiceFace::Arrow, 3), (DiceFace::Beer, 1), (DiceFace::Gatling, 2)]),
         };
         let result2 = DiceRollResult {
-            0: HashMap::from([
-                (DiceFace::Gatling, 1),
-                (DiceFace::Shoot1, 3),
-                (DiceFace::Shoot2, 2),
-            ]),
+            0: HashMap::from([(DiceFace::Gatling, 1), (DiceFace::Shoot1, 3), (DiceFace::Shoot2, 2)]),
         };
         let result3 = DiceRollResult {
-            0: HashMap::from([
-                (DiceFace::Gatling, 3),
-                (DiceFace::Shoot1, 2),
-                (DiceFace::Shoot2, 1),
-            ]),
+            0: HashMap::from([(DiceFace::Gatling, 3), (DiceFace::Shoot1, 2), (DiceFace::Shoot2, 1)]),
         };
 
         assert_eq!(combo1.is_triggered(&result1), true);

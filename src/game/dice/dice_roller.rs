@@ -111,8 +111,7 @@ mod tests {
 
     #[test]
     fn test_dice_throw() {
-        let dice: [HashSet<DiceFace>; N_DICE_PER_THROW] =
-            array::from_fn(|_| HashSet::from(STANDARD_DIE_FACES).clone());
+        let dice: [HashSet<DiceFace>; N_DICE_PER_THROW] = array::from_fn(|_| HashSet::from(STANDARD_DIE_FACES).clone());
         let mut dice_roller = DiceRoller::new(dice.into());
 
         let mut generator = DiceFaceGenerator::new();

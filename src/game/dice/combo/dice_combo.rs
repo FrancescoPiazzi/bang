@@ -16,20 +16,24 @@ struct SimpleDiceCombo {
 
 /* A more generic dice combo, allowing to match any combination of dice */
 // TODO: I think this can be rewritten as Vec<SimpleDiceCombo> to avoid repeating
-// the similar matching logic without losing efficiency but I'm not sure
+// the similar matching logic without losing efficiency
+// could also do the opposite, rewrite the SimpleDiceCombo to just be a 1-condition
+// GenericDiceCombo
 struct GenericDiceCombo(HashMap<DiceFace, u16>);
 
 impl DiceCombo for SimpleDiceCombo {
     fn is_triggered(&self, result: &DiceRollResult) -> bool {
-        *result.0.get(&self.dice_face).unwrap_or(&0) >= self.n_dice
+        result.get(&self.dice_face) >= self.n_dice
     }
 }
+
+
 
 impl DiceCombo for GenericDiceCombo {
     fn is_triggered(&self, result: &DiceRollResult) -> bool {
         self.0
             .iter()
-            .all(|entry| *result.0.get(&entry.0).unwrap_or(&0) >= *entry.1)
+            .all(|(face_required, count_required)| result.get(&face_required) >= *count_required)
     }
 }
 
@@ -48,15 +52,15 @@ mod tests {
             n_dice: 3,
         };
 
-        let result1 = DiceRollResult {
-            0: HashMap::from([(DiceFace::Dynamite, 3), (DiceFace::Arrow, 1), (DiceFace::Shoot1, 2)]),
-        };
-        let result2 = DiceRollResult {
-            0: HashMap::from([(DiceFace::Dynamite, 5), (DiceFace::Gatling, 1)]),
-        };
-        let result3 = DiceRollResult {
-            0: HashMap::from([(DiceFace::Gatling, 3), (DiceFace::Arrow, 1), (DiceFace::Shoot1, 2)]),
-        };
+        let result1 = DiceRollResult::from(
+            HashMap::from([(DiceFace::Dynamite, 3), (DiceFace::Arrow, 1), (DiceFace::Shoot1, 2)]),
+        );
+        let result2 = DiceRollResult::from(
+            HashMap::from([(DiceFace::Dynamite, 5), (DiceFace::Gatling, 1)]),
+        );
+        let result3 = DiceRollResult::from(
+            HashMap::from([(DiceFace::Gatling, 3), (DiceFace::Arrow, 1), (DiceFace::Shoot1, 2)]),
+        );
 
         assert_eq!(combo1.is_triggered(&result1), true);
         assert_eq!(combo1.is_triggered(&result2), true);
@@ -76,15 +80,15 @@ mod tests {
             0: HashMap::from([(DiceFace::Gatling, 3), (DiceFace::Shoot1, 2), (DiceFace::Shoot2, 1)]),
         };
 
-        let result1 = DiceRollResult {
-            0: HashMap::from([(DiceFace::Arrow, 3), (DiceFace::Beer, 1), (DiceFace::Gatling, 2)]),
-        };
-        let result2 = DiceRollResult {
-            0: HashMap::from([(DiceFace::Gatling, 1), (DiceFace::Shoot1, 3), (DiceFace::Shoot2, 2)]),
-        };
-        let result3 = DiceRollResult {
-            0: HashMap::from([(DiceFace::Gatling, 3), (DiceFace::Shoot1, 2), (DiceFace::Shoot2, 1)]),
-        };
+        let result1 = DiceRollResult::from(
+            HashMap::from([(DiceFace::Arrow, 3), (DiceFace::Beer, 1), (DiceFace::Gatling, 2)]),
+        );
+        let result2 = DiceRollResult::from(
+            HashMap::from([(DiceFace::Gatling, 1), (DiceFace::Shoot1, 3), (DiceFace::Shoot2, 2)]),
+        );
+        let result3 = DiceRollResult::from(
+            HashMap::from([(DiceFace::Gatling, 3), (DiceFace::Shoot1, 2), (DiceFace::Shoot2, 1)]),
+        );
 
         assert_eq!(combo1.is_triggered(&result1), true);
         assert_eq!(combo1.is_triggered(&result2), false);

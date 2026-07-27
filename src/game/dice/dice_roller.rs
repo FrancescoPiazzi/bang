@@ -8,9 +8,6 @@ pub(crate) struct DiceRoller {
     dice: Vec<StatedDie>,
 }
 
-#[derive(Debug)]
-pub(crate) struct DiceRollResult(pub(crate) HashMap<DiceFace, u16>);
-
 impl DiceRoller {
     pub(crate) fn new(dice: Vec<HashSet<DiceFace>>) -> DiceRoller {
         DiceRoller {
@@ -57,12 +54,20 @@ impl DiceRoller {
     // TODO: method to lock a dice based on player decision
 }
 
+
+#[derive(Debug)]
+pub(crate) struct DiceRollResult(HashMap<DiceFace, u16>);
+
 impl DiceRollResult {
-    fn new() -> DiceRollResult {
+    pub(crate) fn new() -> DiceRollResult {
         DiceRollResult(HashMap::new())
     }
 
-    fn get(&self, face: &DiceFace) -> u16 {
+    pub(crate) fn from(hash_map: HashMap<DiceFace, u16>) -> DiceRollResult {
+        DiceRollResult(hash_map)
+    }
+
+    pub(crate) fn get(&self, face: &DiceFace) -> u16 {
         *self.0.get(face).unwrap_or(&0)
     }
 }

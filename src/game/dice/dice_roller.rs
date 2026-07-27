@@ -62,8 +62,9 @@ impl DiceRollResult {
         DiceRollResult(HashMap::new())
     }
 
-    // TODO: get() wrapper that calls. unwrap_or(&0) to solve the default 0 problem
-    // and mask the implementation underneath which is just good style anyway
+    fn get(&self, face: &DiceFace) -> u16 {
+        *self.0.get(face).unwrap_or(&0)
+    }
 }
 
 #[cfg(test)]
@@ -77,7 +78,7 @@ mod tests {
     static N_DICE_PER_THROW: usize = 5;
     static STANDARD_DIE_FACES: [DiceFace; 6] = [Shoot1, Shoot2, Beer, Arrow, Gatling, Dynamite];
     static YELDED_FACES: [DiceFace; 10] = [
-        Dynamite, Shoot1, Dynamite, Arrow, Dynamite, Shoot1, Beer, Arrow, Arrow, Gatling,
+        Dynamite, Shoot1, Dynamite, Arrow, Gatling, Shoot1, Beer, Arrow, Arrow, Dynamite,
     ];
 
     struct DiceFaceGenerator {
@@ -104,7 +105,6 @@ mod tests {
             } else {
                 0
             };
-            println!("{:?} ", nxt);
             Some(nxt)
         }
     }
@@ -119,18 +119,21 @@ mod tests {
 
         let res = dice_roller.throw(&mut generator);
         println!("{:?}", res);
-        assert_eq!(*res.0.get(&Dynamite).unwrap(), 3);
-        assert_eq!(*res.0.get(&Shoot1).unwrap(), 1);
-        assert_eq!(*res.0.get(&Arrow).unwrap(), 1);
+        assert_eq!(res.get(&Shoot1), 1);
+        assert_eq!(res.get(&Shoot2), 0);
+        assert_eq!(res.get(&Beer), 0);
+        assert_eq!(res.get(&Arrow), 1);
+        assert_eq!(res.get(&Gatling), 1);
+        assert_eq!(res.get(&Dynamite), 2);
 
         let res = dice_roller.throw(&mut generator);
-        // expect dynamite because it is not rethrown, IMPORTANT: this test result changes if you
+        // expect 3 dynamite because it is not rethrown, IMPORTANT: this test result changes if you
         // optimize and not read the iterator if the item is not throwable
-        assert_eq!(*res.0.get(&Dynamite).unwrap(), 3);
-        assert_eq!(*res.0.get(&Beer).unwrap(), 1);
-        assert_eq!(*res.0.get(&Arrow).unwrap(), 1);
-        assert_eq!(*res.0.get(&Shoot1).unwrap_or(&0), 0);
-        assert_eq!(*res.0.get(&Shoot2).unwrap_or(&0), 0);
-        assert_eq!(*res.0.get(&Gatling).unwrap_or(&0), 0);
+        assert_eq!(res.get(&Shoot1), 0);
+        assert_eq!(res.get(&Shoot2), 0);
+        assert_eq!(res.get(&Beer), 1);
+        assert_eq!(res.get(&Arrow), 1);
+        assert_eq!(res.get(&Gatling), 0);
+        assert_eq!(res.get(&Dynamite), 3);
     }
 }

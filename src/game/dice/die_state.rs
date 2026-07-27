@@ -1,9 +1,11 @@
 use super::die_face::DiceFace;
 
-/* Temporary state of a dice */
+/* Temporary state of a die */
+#[derive(Clone, Copy, Debug)]
 pub(crate) struct DieState {
     dice_face: DiceFace,
     is_throwable: bool,
+    // TODO: is_locked_by_player or something among the lines to not rethrow dices the player wants to keep
 }
 
 impl DieState {
@@ -14,7 +16,7 @@ impl DieState {
         }
     }
 
-    pub(crate) fn get_face(&self) -> DiceFace{
+    pub(crate) fn get_face(&self) -> DiceFace {
         self.dice_face
     }
 
@@ -23,11 +25,11 @@ impl DieState {
         self.is_throwable = DieState::is_face_rethrowable(dice_face);
     }
 
-    pub(crate) fn is_throwable(&self) -> bool{
+    pub(crate) fn is_throwable(&self) -> bool {
         self.is_throwable
     }
 
-    fn is_face_rethrowable(dice_face: DiceFace) -> bool{
-        dice_face != DiceFace::Dynamite     // RULE 4.2
+    fn is_face_rethrowable(dice_face: DiceFace) -> bool {
+        dice_face != DiceFace::Dynamite // RULE 4.2
     }
 }

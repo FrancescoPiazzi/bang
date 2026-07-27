@@ -1,4 +1,4 @@
-#[derive(PartialEq, Eq, Clone, Copy, Hash)]
+#[derive(PartialEq, Eq, Clone, Copy, Hash, Debug)]
 pub(crate) enum DiceFace {
     Shoot1,
     Shoot2,

@@ -6,83 +6,131 @@ use super::die_state::DieState;
 
 pub(crate) struct DiceRoller {
     dice: Vec<StatedDie>,
-    n_dice: usize,
-    max_rerolls: u16,
 }
 
-
-pub(crate) struct DiceRollResult (pub(crate) HashMap<DiceFace, u16>);
+#[derive(Debug)]
+pub(crate) struct DiceRollResult(pub(crate) HashMap<DiceFace, u16>);
 
 impl DiceRoller {
-    fn new(dice: Vec<HashSet<DiceFace>>, max_rerolls: u16) -> DiceRoller {
+    pub(crate) fn new(dice: Vec<HashSet<DiceFace>>) -> DiceRoller {
         DiceRoller {
-            n_dice: dice.len(),
-            max_rerolls: max_rerolls,
-            dice: dice.into_iter().map(|faces| StatedDie{faces: faces, state: None}).collect(),
+            dice: dice
+                .into_iter()
+                .map(|faces| StatedDie {
+                    faces: faces,
+                    state: None,
+                })
+                .collect(),
         }
     }
 
-    fn throw_first(&mut self) -> DiceRollResult {
-        // TODO: it may be convinient to initialize every possible DiceFace to 0
-        // https://stackoverflow.com/questions/21371534/in-rust-is-there-a-way-to-iterate-through-the-values-of-an-enum
-        
+    fn throw(&mut self, dice_values_iter: &mut impl Iterator<Item = DiceFace>) -> DiceRollResult {
         let mut result: DiceRollResult = DiceRollResult::new();
 
         for die in self.dice.iter_mut() {
-            let roll_result = DiceFace::Arrow; // TODO rand.pick(current_dice_state[i].diceType)
-
-            die.state = Some(DieState::new(roll_result));
-
-            result.0.entry(roll_result).and_modify(|count| *count+=1).or_insert(1);
-        }
-
-        return result;
-    }
-
-    fn throw_again(&mut self) -> DiceRollResult{
-
-        let mut result: DiceRollResult = DiceRollResult::new();
-
-        for die in self.dice.iter_mut() {
-            
-            if let Some(state) = &mut die.state {
-                let roll_result = if state.is_throwable() {
-                    DiceFace::Arrow // TODO rand.pick(current_dice_state[i].diceType)
+            // TODO: if a die isn't throwable there is no need to sample the iterator, NOTE: this breaks the second part of test_dice_throw()
+            // as it changes wich dice are picked
+            if let Some(roll_result) = dice_values_iter.next() {
+                if let Some(state) = &mut die.state {
+                    // die has a state -> it has already been thrown
+                    if state.is_throwable() {
+                        state.set_face(roll_result);
+                    }
                 } else {
-                    state.get_face()
-                };
-
-                state.set_face(roll_result);
-
-                result.0.entry(roll_result).and_modify(|count| *count+=1).or_insert(1);
+                    // stateless die, never thrown, initialize it
+                    die.state = Some(DieState::new(roll_result));
+                }
+                // update result object witht the last die throw
+                result
+                    .0
+                    .entry(die.state.unwrap().get_face())
+                    .and_modify(|count| *count += 1)
+                    .or_insert(1);
             } else {
-                // TODO: logger.error("Unexpected: reroll requested for a die without a state")
+                // TODO: logger.error("Unexpected: dice value iterator did not yeld any value")
             }
-            
         }
 
         return result;
     }
+
+    // TODO: method to lock a dice based on player decision
 }
 
 impl DiceRollResult {
     fn new() -> DiceRollResult {
         DiceRollResult(HashMap::new())
     }
+
+    // TODO: get() wrapper that calls. unwrap_or(&0) to solve the default 0 problem
+    // and mask the implementation underneath which is just good style anyway
 }
 
-/* 
-impl Index<usize> for DiceRollResult {
-    type Output = DiceFace;
+#[cfg(test)]
+mod tests {
+    use std::array;
 
-    fn index(&self, index: usize) -> &Self::Output {
-        &self.0[index]
+    use crate::game::dice::die_face::DiceFace::*;
+
+    use super::*;
+
+    static N_DICE_PER_THROW: usize = 5;
+    static STANDARD_DIE_FACES: [DiceFace; 6] = [Shoot1, Shoot2, Beer, Arrow, Gatling, Dynamite];
+    static YELDED_FACES: [DiceFace; 10] = [
+        Dynamite, Shoot1, Dynamite, Arrow, Dynamite, Shoot1, Beer, Arrow, Arrow, Gatling,
+    ];
+
+    struct DiceFaceGenerator {
+        count: usize,
+        looped_values: [DiceFace; 10],
+    }
+
+    impl DiceFaceGenerator {
+        fn new() -> DiceFaceGenerator {
+            DiceFaceGenerator {
+                count: 0,
+                looped_values: YELDED_FACES,
+            }
+        }
+    }
+
+    impl Iterator for DiceFaceGenerator {
+        type Item = DiceFace;
+
+        fn next(&mut self) -> Option<Self::Item> {
+            let nxt = self.looped_values[self.count];
+            self.count = if self.count + 1 < self.looped_values.len() {
+                self.count + 1
+            } else {
+                0
+            };
+            println!("{:?} ", nxt);
+            Some(nxt)
+        }
+    }
+
+    #[test]
+    fn test_dice_throw() {
+        let dice: [HashSet<DiceFace>; N_DICE_PER_THROW] =
+            array::from_fn(|_| HashSet::from(STANDARD_DIE_FACES).clone());
+        let mut dice_roller = DiceRoller::new(dice.into());
+
+        let mut generator = DiceFaceGenerator::new();
+
+        let res = dice_roller.throw(&mut generator);
+        println!("{:?}", res);
+        assert_eq!(*res.0.get(&Dynamite).unwrap(), 3);
+        assert_eq!(*res.0.get(&Shoot1).unwrap(), 1);
+        assert_eq!(*res.0.get(&Arrow).unwrap(), 1);
+
+        let res = dice_roller.throw(&mut generator);
+        // expect dynamite because it is not rethrown, IMPORTANT: this test result changes if you
+        // optimize and not read the iterator if the item is not throwable
+        assert_eq!(*res.0.get(&Dynamite).unwrap(), 3);
+        assert_eq!(*res.0.get(&Beer).unwrap(), 1);
+        assert_eq!(*res.0.get(&Arrow).unwrap(), 1);
+        assert_eq!(*res.0.get(&Shoot1).unwrap_or(&0), 0);
+        assert_eq!(*res.0.get(&Shoot2).unwrap_or(&0), 0);
+        assert_eq!(*res.0.get(&Gatling).unwrap_or(&0), 0);
     }
 }
-
-impl IndexMut<usize> for DiceRollResult {
-    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
-        &mut self.0[index]
-    }
-}
-*/

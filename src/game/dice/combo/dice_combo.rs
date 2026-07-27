@@ -3,30 +3,22 @@ use std::collections::HashMap;
 use super::super::dice_roller::DiceRollResult;
 use super::super::die_face::DiceFace;
 
+/* Trait implemented by any dice combo, for now only one but it leaves the door open
+to do some weird shit like combos that triggers after you've rolled some value(s) n times 
+since the beginning of the game */
 pub(crate) trait DiceCombo {
     fn is_triggered(&self, result: &DiceRollResult) -> bool;
 }
 
-/* A simple dice combo, matching only a certain number of a specific face
-all of the dice combos in the game are instances of this class */
-struct SimpleDiceCombo {
-    dice_face: DiceFace,
-    n_dice: u16,
-}
-
 /* A more generic dice combo, allowing to match any combination of dice */
-// TODO: I think this can be rewritten as Vec<SimpleDiceCombo> to avoid repeating
-// the similar matching logic without losing efficiency
-// could also do the opposite, rewrite the SimpleDiceCombo to just be a 1-condition
-// GenericDiceCombo
 struct GenericDiceCombo(HashMap<DiceFace, u16>);
 
-impl DiceCombo for SimpleDiceCombo {
-    fn is_triggered(&self, result: &DiceRollResult) -> bool {
-        result.get(&self.dice_face) >= self.n_dice
+
+impl GenericDiceCombo {
+    pub(crate) fn from(hash_map: HashMap<DiceFace, u16>) -> GenericDiceCombo{
+        GenericDiceCombo {0: hash_map}
     }
 }
-
 
 
 impl DiceCombo for GenericDiceCombo {
@@ -40,36 +32,6 @@ impl DiceCombo for GenericDiceCombo {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn test_simple_combo() {
-        let combo1 = SimpleDiceCombo {
-            dice_face: DiceFace::Dynamite,
-            n_dice: 3,
-        };
-        let combo2 = SimpleDiceCombo {
-            dice_face: DiceFace::Gatling,
-            n_dice: 3,
-        };
-
-        let result1 = DiceRollResult::from(
-            HashMap::from([(DiceFace::Dynamite, 3), (DiceFace::Arrow, 1), (DiceFace::Shoot1, 2)]),
-        );
-        let result2 = DiceRollResult::from(
-            HashMap::from([(DiceFace::Dynamite, 5), (DiceFace::Gatling, 1)]),
-        );
-        let result3 = DiceRollResult::from(
-            HashMap::from([(DiceFace::Gatling, 3), (DiceFace::Arrow, 1), (DiceFace::Shoot1, 2)]),
-        );
-
-        assert_eq!(combo1.is_triggered(&result1), true);
-        assert_eq!(combo1.is_triggered(&result2), true);
-        assert_eq!(combo1.is_triggered(&result3), false);
-
-        assert_eq!(combo2.is_triggered(&result1), false);
-        assert_eq!(combo2.is_triggered(&result2), false);
-        assert_eq!(combo2.is_triggered(&result3), true);
-    }
 
     #[test]
     fn test_generic_combo() {

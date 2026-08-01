@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use super::super::dice_roller::DiceRollResult;
-use super::super::die_face::DiceFace;
+use super::super::die_face::DieFace;
 
 /* Trait implemented by any dice combo, for now only one but it leaves the door open
 to do some weird shit like combos that triggers after you've rolled some value(s) n times 
@@ -11,11 +11,11 @@ pub(crate) trait DiceCombo {
 }
 
 /* A more generic dice combo, allowing to match any combination of dice */
-struct GenericDiceCombo(HashMap<DiceFace, u16>);
+struct GenericDiceCombo(HashMap<DieFace, u16>);
 
 
 impl GenericDiceCombo {
-    pub(crate) fn from(hash_map: HashMap<DiceFace, u16>) -> GenericDiceCombo{
+    pub(crate) fn from(hash_map: HashMap<DieFace, u16>) -> GenericDiceCombo{
         GenericDiceCombo {0: hash_map}
     }
 }
@@ -36,20 +36,20 @@ mod tests {
     #[test]
     fn test_generic_combo() {
         let combo1 = GenericDiceCombo {
-            0: HashMap::from([(DiceFace::Gatling, 1), (DiceFace::Arrow, 1), (DiceFace::Beer, 1)]),
+            0: HashMap::from([(DieFace::Gatling, 1), (DieFace::Arrow, 1), (DieFace::Beer, 1)]),
         };
         let combo2 = GenericDiceCombo {
-            0: HashMap::from([(DiceFace::Gatling, 3), (DiceFace::Shoot1, 2), (DiceFace::Shoot2, 1)]),
+            0: HashMap::from([(DieFace::Gatling, 3), (DieFace::Shoot1, 2), (DieFace::Shoot2, 1)]),
         };
 
         let result1 = DiceRollResult::from(
-            HashMap::from([(DiceFace::Arrow, 3), (DiceFace::Beer, 1), (DiceFace::Gatling, 2)]),
+            HashMap::from([(DieFace::Arrow, 3), (DieFace::Beer, 1), (DieFace::Gatling, 2)]),
         );
         let result2 = DiceRollResult::from(
-            HashMap::from([(DiceFace::Gatling, 1), (DiceFace::Shoot1, 3), (DiceFace::Shoot2, 2)]),
+            HashMap::from([(DieFace::Gatling, 1), (DieFace::Shoot1, 3), (DieFace::Shoot2, 2)]),
         );
         let result3 = DiceRollResult::from(
-            HashMap::from([(DiceFace::Gatling, 3), (DiceFace::Shoot1, 2), (DiceFace::Shoot2, 1)]),
+            HashMap::from([(DieFace::Gatling, 3), (DieFace::Shoot1, 2), (DieFace::Shoot2, 1)]),
         );
 
         assert_eq!(combo1.is_triggered(&result1), true);

@@ -12,3 +12,13 @@ pub(crate) enum DieFace {
     // DoubleShot
     // DobleBeer
 }
+
+
+impl DieFace {
+    pub(crate) fn is_face_locking(&self) -> bool {
+        match *self {
+            DieFace::Dynamite => true,
+            _ => false,
+        }
+    }
+}

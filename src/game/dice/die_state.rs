@@ -13,7 +13,7 @@ impl DieState {
         DieState {
             dice_face: dice_face,
             is_locked_by_rules: dice_face.is_face_locking(),
-            is_locked_by_player: false  // RULE 3.1 (must roll all dice the first throw)
+            is_locked_by_player: false, // RULE 3.1 (must roll all dice the first throw)
         }
     }
 
@@ -26,7 +26,7 @@ impl DieState {
         self.is_locked_by_rules = dice_face.is_face_locking();
     }
 
-    pub(crate) fn get_locked_by_player(&self) -> bool{
+    pub(crate) fn get_locked_by_player(&self) -> bool {
         self.is_locked_by_player
     }
 

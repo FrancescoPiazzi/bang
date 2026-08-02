@@ -13,7 +13,6 @@ pub(crate) enum DieFace {
     // DobleBeer
 }
 
-
 impl DieFace {
     pub(crate) fn is_face_locking(&self) -> bool {
         match *self {

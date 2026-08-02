@@ -1,8 +1,5 @@
 use std::collections::{HashMap, HashSet};
 
-use std::iter::Filter;
-use std::slice::Iter;
-
 use super::die::StatedDie;
 use super::die_face::DieFace;
 use super::die_state::DieState;
@@ -28,28 +25,30 @@ impl DiceRoller {
         let mut result: DiceRollResult = DiceRollResult::new();
 
         for die in self.dice.iter_mut() {
-            // TODO: if a die isn't throwable there is no need to sample the iterator, NOTE: changing this breaks
-            // some tests as it changes wich dice are picked
-            if let Some(roll_result) = dice_values_iter.next() {
-                if let Some(state) = &mut die.state {
-                    // die has a state -> it has already been thrown
-                    if state.is_throwable() {
+            
+            if let Some(state) = &mut die.state {
+                // die has a state -> it has already been thrown
+                if state.is_throwable() {
+                    if let Some(roll_result) = dice_values_iter.next() {
                         state.set_face(roll_result);
+                    } else {
+                        // TODO: logger.error("Unexpected: dice value iterator did not yeld any value")
                     }
-                } else {
-                    // stateless die, never thrown, initialize it
-                    die.state = Some(DieState::new(roll_result));
                 }
-
-                // update result object witht the last die throw
-                let final_face = die.state.unwrap().get_face();
-                result.0.entry(final_face).and_modify(|count| *count += 1).or_insert(1);
             } else {
-                // TODO: logger.error("Unexpected: dice value iterator did not yeld any value")
+                // stateless die, never thrown, initialize it
+                if let Some(roll_result) = dice_values_iter.next() {
+                    die.state = Some(DieState::new(roll_result));
+                } else {
+                    // TODO: logger.error("Unexpected: dice value iterator did not yeld any value")
+                }
             }
-        }
 
-        println!("throw result: {:?}", result);
+            // update result object witht the last die throw
+            let final_face = die.state.unwrap().get_face();
+            result.0.entry(final_face).and_modify(|count| *count += 1).or_insert(1);
+
+        }
 
         return result;
     }
@@ -143,25 +142,28 @@ mod tests {
 
     static N_DICE_PER_THROW: usize = 5;
     static STANDARD_DIE_FACES: [DieFace; 6] = [Shoot1, Shoot2, Beer, Arrow, Gatling, Dynamite];
-    static YELDED_FACES: [DieFace; 10] = [
+    static PSEUDO_RANDOM_FACES: [DieFace; 10] = [
         Dynamite, Shoot1, Dynamite, Arrow, Shoot1, Shoot1, Beer, Arrow, Arrow, Dynamite,
     ];
+    static SHOOT_1_2_FACES: [DieFace; 10] = [
+        Shoot1, Shoot1, Shoot1, Shoot1, Shoot1, Shoot2, Shoot2, Shoot2, Shoot2, Shoot2
+    ];
 
-    struct DieFaceGenerator {
+    struct LoopingFaceGenerator {
         count: usize,
-        looped_values: [DieFace; 10],
+        looped_values: Vec<DieFace>,
     }
 
-    impl DieFaceGenerator {
-        fn new() -> DieFaceGenerator {
-            DieFaceGenerator {
+    impl LoopingFaceGenerator {
+        fn new(looped_values: Vec<DieFace>) -> LoopingFaceGenerator {
+            LoopingFaceGenerator {
                 count: 0,
-                looped_values: YELDED_FACES,
+                looped_values: looped_values,
             }
         }
     }
 
-    impl Iterator for DieFaceGenerator {
+    impl Iterator for LoopingFaceGenerator {
         type Item = DieFace;
 
         fn next(&mut self) -> Option<Self::Item> {
@@ -171,6 +173,7 @@ mod tests {
             } else {
                 0
             };
+            println!("throw: {:?}", nxt);
             Some(nxt)
         }
     }
@@ -180,7 +183,7 @@ mod tests {
         let dice: [HashSet<DieFace>; N_DICE_PER_THROW] = array::from_fn(|_| HashSet::from(STANDARD_DIE_FACES).clone());
         let mut dice_roller = DiceRoller::new(dice.into());
 
-        let mut generator = DieFaceGenerator::new();
+        let mut generator = LoopingFaceGenerator::new(PSEUDO_RANDOM_FACES.to_vec());
 
         let res = dice_roller.throw(&mut generator);
         println!("{:?}", res);
@@ -192,14 +195,13 @@ mod tests {
         assert_eq!(res.get(&Dynamite), 2);
 
         let res = dice_roller.throw(&mut generator);
-        // expect 3 dynamite because it is not rethrown, IMPORTANT: this test result changes if you
-        // optimize and not read the iterator if the item is not throwable
-        assert_eq!(res.get(&Shoot1), 0);
+        println!("{:?}", res);
+        assert_eq!(res.get(&Shoot1), 1);
         assert_eq!(res.get(&Shoot2), 0);
         assert_eq!(res.get(&Beer), 1);
         assert_eq!(res.get(&Arrow), 1);
         assert_eq!(res.get(&Gatling), 0);
-        assert_eq!(res.get(&Dynamite), 3);
+        assert_eq!(res.get(&Dynamite), 2);
     }
 
     #[test]
@@ -207,33 +209,33 @@ mod tests {
         let dice: [HashSet<DieFace>; N_DICE_PER_THROW] = array::from_fn(|_| HashSet::from(STANDARD_DIE_FACES).clone());
         let mut dice_roller = DiceRoller::new(dice.into());
 
-        let mut generator = DieFaceGenerator::new();
+        let mut generator = LoopingFaceGenerator::new(SHOOT_1_2_FACES.to_vec());
 
         let _ = dice_roller.throw(&mut generator);
 
-        assert_eq!(dice_roller.lock_dice_amount(Shoot1, 3), Err(2));
-        assert_eq!(dice_roller.lock_dice_amount(Shoot1, 1), Ok(1));
-        assert_eq!(dice_roller.lock_dice(Dynamite), Ok(2));
+        assert_eq!(dice_roller.lock_dice_amount(Shoot1, 100), Err(5));
+        assert_eq!(dice_roller.lock_dice_amount(Shoot1, 2), Ok(2));
+        assert_eq!(dice_roller.lock_dice(Beer), Ok(0));
+
+        let res = dice_roller.throw(&mut generator);
+
+        assert_eq!(res.get(&Shoot1), 2);
+        assert_eq!(res.get(&Shoot2), 3);
+        assert_eq!(res.get(&Beer), 0);
+        assert_eq!(res.get(&Arrow), 0);
+        assert_eq!(res.get(&Gatling), 0);
+        assert_eq!(res.get(&Dynamite), 0);
+
+        assert_eq!(dice_roller.unlock_dice_amount(Shoot1, 1), Ok(1));
+        assert_eq!(dice_roller.lock_dice(Shoot2), Ok(3));
 
         let res = dice_roller.throw(&mut generator);
 
         assert_eq!(res.get(&Shoot1), 1);
-        assert_eq!(res.get(&Shoot2), 0);
+        assert_eq!(res.get(&Shoot2), 4);
         assert_eq!(res.get(&Beer), 0);
-        assert_eq!(res.get(&Arrow), 1);
+        assert_eq!(res.get(&Arrow), 0);
         assert_eq!(res.get(&Gatling), 0);
-        assert_eq!(res.get(&Dynamite), 3);
-
-        assert_eq!(dice_roller.unlock_dice(Shoot1), Ok(1));
-        assert_eq!(dice_roller.unlock_dice(Dynamite), Ok(2)); // 3 dynamites, but only 2 of them were locked
-
-        let res = dice_roller.throw(&mut generator);
-
-        assert_eq!(res.get(&Shoot1), 1);
-        assert_eq!(res.get(&Shoot2), 0);
-        assert_eq!(res.get(&Beer), 0);
-        assert_eq!(res.get(&Arrow), 1);
-        assert_eq!(res.get(&Gatling), 0);
-        assert_eq!(res.get(&Dynamite), 3);
+        assert_eq!(res.get(&Dynamite), 0);
     }
 }

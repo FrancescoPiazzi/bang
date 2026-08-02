@@ -120,9 +120,6 @@ impl DiceRoller {
             )
             .collect()
     }
-
-
-    // TODO overload the above with something that locks all die of a type
 }
 
 

@@ -1,4 +1,3 @@
-add a logger
 implement main controller
 figure out how to have parts of the program ask for the controller to perform an action (Heal character by 1) (controller passes a reference of itself like in Java? Is that bad practice?) 
 implement ui

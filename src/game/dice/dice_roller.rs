@@ -1,5 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
+use log::{error, trace};
+
 use super::die::StatedDie;
 use super::die_face::DieFace;
 use super::die_state::DieState;
@@ -22,6 +24,8 @@ impl DiceRoller {
     }
 
     pub(crate) fn throw(&mut self, dice_values_iter: &mut impl Iterator<Item = DieFace>) -> DiceRollResult {
+        trace!("🎲 throwing dice");
+
         let mut result: DiceRollResult = DiceRollResult::new();
 
         for die in self.dice.iter_mut() {
@@ -32,7 +36,7 @@ impl DiceRoller {
                     if let Some(roll_result) = dice_values_iter.next() {
                         state.set_face(roll_result);
                     } else {
-                        // TODO: logger.error("Unexpected: dice value iterator did not yeld any value")
+                        error!("Dice value iterator did not yeld a value")
                     }
                 }
             } else {
@@ -40,7 +44,7 @@ impl DiceRoller {
                 if let Some(roll_result) = dice_values_iter.next() {
                     die.state = Some(DieState::new(roll_result));
                 } else {
-                    // TODO: logger.error("Unexpected: dice value iterator did not yeld any value")
+                    error!("Dice value iterator did not yeld a value")
                 }
             }
 
@@ -50,6 +54,7 @@ impl DiceRoller {
 
         }
 
+        trace!("🎲 dice thrown, result is: {:?}", result);
         return result;
     }
 

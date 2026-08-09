@@ -3,10 +3,9 @@
 use super::role::Role;
 use crate::{
     game::characters::{
-        character::{Archetype, CharacterType, PlayableCharacter},
-        characters::*,
+        character::{Archetype, CharacterType, PlayableCharacter}
     },
-    players::{player::Player, player_data::PlayerData},
+    players::{player::Player},
 };
 
 use log::{error, info};

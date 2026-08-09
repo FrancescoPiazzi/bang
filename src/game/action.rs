@@ -1,12 +1,12 @@
 struct Action{
     source: ActionSource,
-    target: &Character,
+    target: &PlayableCharacter,
     action_type: ActionType
 }
 
 enum ActionSource{
     PILE,
-    CHARACTER(&Character)
+    CHARACTER(&PlayableCharacter)
 }
 
 enum ActionType{

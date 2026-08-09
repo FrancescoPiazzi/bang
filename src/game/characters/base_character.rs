@@ -5,9 +5,9 @@ use crate::game::dice::dice_roller::DiceRoller;
 
 /**
  * Common data and behaviour that most if not all characters will share at least to some degree
- * does NOT define methods available for characters, which are defined in the Character trait
+ * does NOT define methods available for characters, which are defined in the PlayableCharacter trait
  */
-pub(crate) struct BaseCharacter {
+pub(crate) struct CharacterData {
     alive: bool,
 
     max_hp: u16,
@@ -17,9 +17,9 @@ pub(crate) struct BaseCharacter {
     dice_roller: Option<DiceRoller>,
 }
 
-impl BaseCharacter {
-    pub(crate) fn new(max_hp: u16) -> BaseCharacter {
-        BaseCharacter {
+impl CharacterData {
+    pub(crate) fn new(max_hp: u16) -> CharacterData {
+        CharacterData {
             max_hp: max_hp,
             hp: max_hp,
             alive: true,
@@ -68,7 +68,7 @@ mod tests {
     #[test]
     fn test_damage() {
         for damage_type in [DamageType::Arrow, DamageType::Bullet, DamageType::Gatling] {
-            let mut ch = BaseCharacter::new(9);
+            let mut ch = CharacterData::new(9);
             ch.take_damage(1, damage_type);
             assert_eq!(ch.hp, 8);
             assert_eq!(ch.max_hp, 9);
@@ -83,7 +83,7 @@ mod tests {
 
     #[test]
     fn test_arrows() {
-        let mut ch = BaseCharacter::new(9);
+        let mut ch = CharacterData::new(9);
         ch.give_arrows(1);
         ch.activate_arrows();
         assert_eq!(ch.arrows, 0);
@@ -98,7 +98,7 @@ mod tests {
     #[test]
     fn test_heal() {
         for damage_type in [DamageType::Arrow, DamageType::Bullet, DamageType::Gatling] {
-            let mut ch = BaseCharacter::new(9);
+            let mut ch = CharacterData::new(9);
             ch.heal(1);
             assert_eq!(ch.hp, 9); // overheal
             ch.take_damage(5, damage_type);

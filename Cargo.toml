@@ -4,5 +4,6 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-colog = "1.4.0"
+enum_dispatch="0.3.x"
 log = "0.4.33"
+colog = "1.4.0"

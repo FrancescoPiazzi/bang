@@ -29,7 +29,6 @@ impl DiceRoller {
         let mut result: DiceRollResult = DiceRollResult::new();
 
         for die in self.dice.iter_mut() {
-            
             if let Some(state) = &mut die.state {
                 // die has a state -> it has already been thrown
                 if state.is_throwable() {
@@ -51,7 +50,6 @@ impl DiceRoller {
             // update result object witht the last die throw
             let final_face = die.state.unwrap().get_face();
             result.0.entry(final_face).and_modify(|count| *count += 1).or_insert(1);
-
         }
 
         trace!("🎲 dice thrown, result is: {:?}", result);
@@ -151,7 +149,7 @@ mod tests {
         Dynamite, Shoot1, Dynamite, Arrow, Shoot1, Shoot1, Beer, Arrow, Arrow, Dynamite,
     ];
     static SHOOT_1_2_FACES: [DieFace; 10] = [
-        Shoot1, Shoot1, Shoot1, Shoot1, Shoot1, Shoot2, Shoot2, Shoot2, Shoot2, Shoot2
+        Shoot1, Shoot1, Shoot1, Shoot1, Shoot1, Shoot2, Shoot2, Shoot2, Shoot2, Shoot2,
     ];
 
     struct LoopingFaceGenerator {

@@ -50,7 +50,7 @@ following order. You cannot pass on a rolled die: you must use them all (1)
 2. Dynamite: This die cannot be re-rolled (1). If you roll three or
     more Dynamites, you cannot reroll anymore dice this turn (2), and
     you lose one life point (3). All your other dice results are then resolved
-    as normal unless you are eliminated by the Dynamite(4)
+    as normal unless you are eliminated by the Dynamite (4)
 
 3. Bull’s Eye “1”: Choose the player next to you on your left or
     right. That player loses one life point.

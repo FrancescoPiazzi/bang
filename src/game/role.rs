@@ -1,8 +1,11 @@
 use log::warn;
 
-use crate::game::role::Role::{DEPUTY, OUTLAW, RENEGADE, SHERIFF};
+use crate::game::{
+    role::Role::{DEPUTY, OUTLAW, RENEGADE, SHERIFF},
+    shuffler::Shuffler,
+};
 
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Clone, Copy, Hash, PartialEq, Eq, Debug)]
 pub(crate) enum Role {
     SHERIFF,
     DEPUTY,
@@ -11,7 +14,13 @@ pub(crate) enum Role {
 }
 
 impl Role {
-    pub(crate) fn roles_by_n_players(n: usize) -> Vec<Role> {
+    pub(crate) fn roles_by_n_players(n: usize, shuffler: &Box<dyn Shuffler>) -> Vec<Role> {
+        let mut roles = Role::roles_by_n_players_inner(n);
+        shuffler.shuffle_roles(&mut roles);
+        roles
+    }
+
+    fn roles_by_n_players_inner(n: usize) -> Vec<Role> {
         // rule 2.1
         match n {
             0 => {
@@ -27,7 +36,7 @@ impl Role {
                 Vec::from([SHERIFF, OUTLAW])
             }
             3 => {
-                warn!("requested roles for 3 players, official rules cover this but I can't be bothered for now");
+                warn!("requested roles for 3 players, official rules cover this differently but I can't be bothered for now");
                 Vec::from([SHERIFF, OUTLAW, RENEGADE])
             }
             4 => Vec::from([SHERIFF, OUTLAW, OUTLAW, RENEGADE]),
@@ -40,7 +49,7 @@ impl Role {
                     "requested roles for a shit ton of people, official rules don't cover this, I'll make up something"
                 );
 
-                let res = Role::roles_by_n_players(8);
+                let res = Role::roles_by_n_players_inner(8);
                 let roles_to_add = [OUTLAW, DEPUTY, RENEGADE].into_iter().cycle();
 
                 res.into_iter().chain(roles_to_add.take(n - 8)).collect()

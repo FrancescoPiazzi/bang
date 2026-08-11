@@ -84,8 +84,6 @@ impl DiceRoller {
         let mut matching_dice: Vec<&mut StatedDie> = self.get_matching_dice_mut(face, lock);
         let actual_amount = amount.unwrap_or(matching_dice.len());
 
-        // println!("dice matching {:?}: {:?}", face, matching_dice);
-
         if matching_dice.len() >= actual_amount {
             matching_dice.iter_mut().take(actual_amount).for_each(|die| {
                 if let Some(ref mut state) = die.state {

@@ -2,10 +2,11 @@
 
 use super::role::Role;
 use crate::{
-    game::characters::{
-        character::{Archetype, CharacterType, PlayableCharacter}
+    game::{
+        characters::character::{Archetype, CharacterType, PlayableCharacter},
+        shuffler::Shuffler,
     },
-    players::{player::Player},
+    players::player::Player,
 };
 
 use log::{error, info};
@@ -16,9 +17,9 @@ struct MatchController {
 }
 
 impl MatchController {
-    pub(crate) fn new(n_players: usize) -> MatchController {
-        let roles = Role::roles_by_n_players(n_players);
-        let characters = MatchController::get_characters(n_players);
+    pub(crate) fn new(n_players: usize, shuffler: Box<dyn Shuffler>) -> MatchController {
+        let roles = Role::roles_by_n_players(n_players, &shuffler);
+        let characters = MatchController::get_characters(n_players, &shuffler);
 
         let players: Vec<Player> = roles
             .into_iter()
@@ -47,7 +48,7 @@ impl MatchController {
         }
     }
 
-    pub(crate) fn get_characters(n_players: usize) -> Vec<Box<dyn PlayableCharacter>> {
+    pub(crate) fn get_characters(n_players: usize, shuffler: &Box<dyn Shuffler>) -> Vec<Box<dyn PlayableCharacter>> {
         let characters = vec![CharacterType::SuzieLafette];
 
         if n_players > characters.len() {
@@ -58,23 +59,66 @@ impl MatchController {
             );
         }
 
-        characters
-            .into_iter()
-            .cycle()
-            .take(n_players)
-            .map(|character| Archetype::new(character))
-            .collect()
+        let mut res = Vec::from(
+            characters
+                .into_iter()
+                .cycle()
+                .take(n_players)
+                .map(|character| Archetype::new(character))
+                .collect::<Vec<_>>(),
+        );
+
+        shuffler.shuffle_characters(&mut res);
+        res
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use std::array;
+    use std::collections::HashMap;
 
-    use crate::game::dice::die_face::DieFace::*;
+    use crate::game::shuffler::{MockShuffler, ReverseShuffler};
 
     use super::*;
 
     #[test]
-    fn test_start_game_from_sheriff() {}
+    fn test_role_assignment() {
+        let roles = count_roles(&MatchController::new(5, Box::new(MockShuffler)));
+        assert_eq!(*roles.get(&Role::SHERIFF).unwrap(), 1);
+        assert_eq!(*roles.get(&Role::DEPUTY).unwrap(), 1);
+        assert_eq!(*roles.get(&Role::OUTLAW).unwrap(), 2);
+        assert_eq!(*roles.get(&Role::RENEGADE).unwrap(), 1);
+
+        let roles = count_roles(&MatchController::new(8, Box::new(MockShuffler)));
+        assert_eq!(*roles.get(&Role::SHERIFF).unwrap(), 1);
+        assert_eq!(*roles.get(&Role::DEPUTY).unwrap(), 2);
+        assert_eq!(*roles.get(&Role::OUTLAW).unwrap(), 3);
+        assert_eq!(*roles.get(&Role::RENEGADE).unwrap(), 2);
+
+        let roles = count_roles(&MatchController::new(10, Box::new(MockShuffler)));
+        assert_eq!(*roles.get(&Role::SHERIFF).unwrap(), 1);
+        assert_eq!(*roles.get(&Role::DEPUTY).unwrap(), 3);
+        assert_eq!(*roles.get(&Role::OUTLAW).unwrap(), 4);
+        assert_eq!(*roles.get(&Role::RENEGADE).unwrap(), 2);
+    }
+
+    // returns a HashMap mapping role to how many players have that role in the current controller
+    fn count_roles(ctr: &MatchController) -> HashMap<Role, usize> {
+        let mut res = HashMap::new();
+
+        ctr.players.iter().for_each(|player| {
+            res.entry(player.role).and_modify(|count| *count += 1).or_insert(1);
+        });
+
+        res
+    }
+
+    #[test]
+    fn test_sheriff_starts() {
+        let ctr = MatchController::new(5, Box::new(MockShuffler));
+        assert_eq!(ctr.players[ctr.active_turn_index].role, Role::SHERIFF);
+
+        let ctr = MatchController::new(5, Box::new(ReverseShuffler));
+        assert_eq!(ctr.players[ctr.active_turn_index].role, Role::SHERIFF);
+    }
 }

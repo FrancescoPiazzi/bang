@@ -1,0 +1,6 @@
+{
+    "n_players": 6,
+
+    "dice_thrown": 5,
+    "dice_throw_type": "AUTOMATIC_FOR_BOTS"
+}

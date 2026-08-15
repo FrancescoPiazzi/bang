@@ -5,6 +5,7 @@ use crate::{
     game::{
         characters::character::{Archetype, CharacterType, PlayableCharacter},
         shuffler::Shuffler,
+        settings::Settings
     },
     players::player::Player,
 };
@@ -12,14 +13,15 @@ use crate::{
 use log::{error, info};
 
 struct MatchController {
+    settings: Settings,
     players: Vec<Player>,
     active_turn_index: usize,
 }
 
 impl MatchController {
-    pub(crate) fn new(n_players: usize, shuffler: Box<dyn Shuffler>) -> MatchController {
-        let roles = Role::roles_by_n_players(n_players, &shuffler);
-        let characters = MatchController::get_characters(n_players, &shuffler);
+    pub(crate) fn new(settings: Settings,shuffler: Box<dyn Shuffler>) -> MatchController {
+        let roles = Role::roles_by_n_players(settings.n_players, &shuffler);
+        let characters = MatchController::get_characters(settings.n_players, &shuffler);
 
         let players: Vec<Player> = roles
             .into_iter()
@@ -43,6 +45,7 @@ impl MatchController {
             });
 
         MatchController {
+            settings: settings,
             players: players,
             active_turn_index: first_turn_index,
         }
@@ -83,19 +86,19 @@ mod tests {
 
     #[test]
     fn test_role_assignment() {
-        let roles = count_roles(&MatchController::new(5, Box::new(MockShuffler)));
+        let roles = count_roles(&MatchController::new(Settings::with_players(5),Box::new(MockShuffler)));
         assert_eq!(*roles.get(&Role::SHERIFF).unwrap(), 1);
         assert_eq!(*roles.get(&Role::DEPUTY).unwrap(), 1);
         assert_eq!(*roles.get(&Role::OUTLAW).unwrap(), 2);
         assert_eq!(*roles.get(&Role::RENEGADE).unwrap(), 1);
 
-        let roles = count_roles(&MatchController::new(8, Box::new(MockShuffler)));
+        let roles = count_roles(&MatchController::new(Settings::with_players(8), Box::new(MockShuffler)));
         assert_eq!(*roles.get(&Role::SHERIFF).unwrap(), 1);
         assert_eq!(*roles.get(&Role::DEPUTY).unwrap(), 2);
         assert_eq!(*roles.get(&Role::OUTLAW).unwrap(), 3);
         assert_eq!(*roles.get(&Role::RENEGADE).unwrap(), 2);
 
-        let roles = count_roles(&MatchController::new(10, Box::new(MockShuffler)));
+        let roles = count_roles(&MatchController::new(Settings::with_players(10), Box::new(MockShuffler)));
         assert_eq!(*roles.get(&Role::SHERIFF).unwrap(), 1);
         assert_eq!(*roles.get(&Role::DEPUTY).unwrap(), 3);
         assert_eq!(*roles.get(&Role::OUTLAW).unwrap(), 4);
@@ -115,10 +118,10 @@ mod tests {
 
     #[test]
     fn test_sheriff_starts() {
-        let ctr = MatchController::new(5, Box::new(MockShuffler));
+        let ctr = MatchController::new(Settings::default(), Box::new(MockShuffler));
         assert_eq!(ctr.players[ctr.active_turn_index].role, Role::SHERIFF);
 
-        let ctr = MatchController::new(5, Box::new(ReverseShuffler));
+        let ctr = MatchController::new(Settings::default(), Box::new(ReverseShuffler));
         assert_eq!(ctr.players[ctr.active_turn_index].role, Role::SHERIFF);
     }
 }

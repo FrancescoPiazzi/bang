@@ -1,1 +1,0 @@
-/* handles an entire game, which may span for multiple matches */

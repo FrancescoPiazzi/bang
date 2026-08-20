@@ -3,9 +3,10 @@
 use super::role::Role;
 use crate::{
     game::{
+        action::ActionRange,
         characters::character::{Archetype, CharacterType, PlayableCharacter},
+        settings::Settings,
         shuffler::Shuffler,
-        settings::Settings
     },
     players::player::Player,
 };
@@ -19,7 +20,7 @@ struct MatchController {
 }
 
 impl MatchController {
-    pub(crate) fn new(settings: Settings,shuffler: Box<dyn Shuffler>) -> MatchController {
+    pub(crate) fn new(settings: Settings, shuffler: Box<dyn Shuffler>) -> MatchController {
         let roles = Role::roles_by_n_players(settings.n_players, &shuffler);
         let characters = MatchController::get_characters(settings.n_players, &shuffler);
 
@@ -74,6 +75,16 @@ impl MatchController {
         shuffler.shuffle_characters(&mut res);
         res
     }
+
+    // returns the possible target options for the currently active player
+    // TODO
+    /*pub(crate) fn get_target_options(&self, range: ActionRange) -> Vec<Box<&dyn PlayableCharacter>>{
+        ActionRange::get_targets(
+            &self.players,
+            self.active_turn_index, range
+        ).iter().map(|player| **player.get_character()).collect()
+    }
+    */
 }
 
 #[cfg(test)]
@@ -86,7 +97,7 @@ mod tests {
 
     #[test]
     fn test_role_assignment() {
-        let roles = count_roles(&MatchController::new(Settings::with_players(5),Box::new(MockShuffler)));
+        let roles = count_roles(&MatchController::new(Settings::with_players(5), Box::new(MockShuffler)));
         assert_eq!(*roles.get(&Role::SHERIFF).unwrap(), 1);
         assert_eq!(*roles.get(&Role::DEPUTY).unwrap(), 1);
         assert_eq!(*roles.get(&Role::OUTLAW).unwrap(), 2);
@@ -98,7 +109,10 @@ mod tests {
         assert_eq!(*roles.get(&Role::OUTLAW).unwrap(), 3);
         assert_eq!(*roles.get(&Role::RENEGADE).unwrap(), 2);
 
-        let roles = count_roles(&MatchController::new(Settings::with_players(10), Box::new(MockShuffler)));
+        let roles = count_roles(&MatchController::new(
+            Settings::with_players(10),
+            Box::new(MockShuffler),
+        ));
         assert_eq!(*roles.get(&Role::SHERIFF).unwrap(), 1);
         assert_eq!(*roles.get(&Role::DEPUTY).unwrap(), 3);
         assert_eq!(*roles.get(&Role::OUTLAW).unwrap(), 4);

@@ -6,12 +6,10 @@ use std::path::Path;
 
 use crate::game::settings::*;
 
-use log::{trace, error};
+use log::{error, trace};
 use serde_json::Value;
 
-struct GameController{
-
-}
+struct GameController {}
 
 impl GameController {
     pub(crate) fn load_settings_from_file(name: Option<String>) -> Settings {
@@ -21,9 +19,9 @@ impl GameController {
 
             let mut file = match File::open(&Path::new(&path_str)) {
                 Ok(file) => file,
-                Err(why) => { 
+                Err(why) => {
                     error!("Io error when loading settings: {}, loading defaults instead", why);
-                    return Settings::default()
+                    return Settings::default();
                 }
             };
 
@@ -33,7 +31,7 @@ impl GameController {
                 return Settings::default();
             }
 
-            let settings: Settings = match serde_json::from_str(&s){
+            let settings: Settings = match serde_json::from_str(&s) {
                 Ok(settings) => settings,
                 Err(error) => {
                     error!("Incorrect format when loading settings, loading defaults instead");

@@ -36,7 +36,9 @@ impl Role {
                 Vec::from([SHERIFF, OUTLAW])
             }
             3 => {
-                warn!("requested roles for 3 players, official rules cover this differently but I can't be bothered for now");
+                warn!(
+                    "requested roles for 3 players, official rules cover this differently but I can't be bothered for now"
+                );
                 Vec::from([SHERIFF, OUTLAW, RENEGADE])
             }
             4 => Vec::from([SHERIFF, OUTLAW, OUTLAW, RENEGADE]),

@@ -1,4 +1,4 @@
-use serde::{Deserialize};
+use serde::Deserialize;
 
 #[derive(Deserialize)]
 pub(crate) struct Settings {
@@ -14,7 +14,7 @@ impl Settings {
             n_players: players,
 
             dice_thrown: 5,
-            dice_throw_type: DiceThrowType::AutomaticForBots
+            dice_throw_type: DiceThrowType::AutomaticForBots,
         }
     }
 
@@ -23,7 +23,7 @@ impl Settings {
             n_players: players,
 
             dice_thrown: dice_thrown,
-            dice_throw_type: dice_throw_type
+            dice_throw_type: dice_throw_type,
         }
     }
 }
@@ -34,7 +34,7 @@ impl Default for Settings {
             n_players: 8,
 
             dice_thrown: 5,
-            dice_throw_type: DiceThrowType::AutomaticForBots
+            dice_throw_type: DiceThrowType::AutomaticForBots,
         }
     }
 }
@@ -43,5 +43,5 @@ impl Default for Settings {
 pub(crate) enum DiceThrowType {
     Automatic,
     AutomaticForBots,
-    Manual
+    Manual,
 }

@@ -5,5 +5,6 @@ pub mod game_controller;
 pub mod match_controller;
 pub mod role;
 
-mod shuffler;
+mod action;
 mod settings;
+mod shuffler;

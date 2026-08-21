@@ -7,7 +7,7 @@ struct Action<'a> {
 }
 
 #[derive(Debug)]
-enum ActionType {
+pub(crate) enum ActionType {
     Shoot(u32),
     Heal(u32),
     GiveArrows(u32),
@@ -26,7 +26,7 @@ pub(crate) enum ActionRange {
 }
 
 impl ActionRange {
-    // TODO: maybe return type should have a different lifetime that may last less than 'a
+    // TODO: maybe return type can have a different lifetime that may last less than 'a
     // but I'm not gonna mess with them now that I haven't written the rest of the code yet
     pub(crate) fn get_targets<'a, T>(
         elements: &'a Vec<T>,

@@ -2,7 +2,7 @@ use serde::Deserialize;
 
 #[derive(Deserialize)]
 pub(crate) struct Settings {
-    pub(crate) n_players: usize,
+    pub(crate) n_players: usize, // TODO: remove this, infer it from actors len
 
     pub(crate) dice_thrown: usize,
     pub(crate) dice_throw_type: DiceThrowType,

@@ -1,12 +1,14 @@
 use crate::game::characters::character::PlayableCharacter;
 use crate::game::role::Role;
+use crate::players::actor::Actor;
 
-pub(crate) struct Player {
+pub(crate) struct Player<'a> {
     pub(crate) role: Role,
     pub(crate) character: Box<dyn PlayableCharacter>,
+    pub(crate) actor: Box<dyn Actor<'a>>,
 }
 
-impl Player {
+impl<'a> Player<'_> {
     pub(crate) fn set_role(&mut self, role: Role) {
         self.role = role;
     }

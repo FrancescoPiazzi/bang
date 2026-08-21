@@ -8,28 +8,31 @@ use crate::{
         settings::Settings,
         shuffler::Shuffler,
     },
-    players::player::Player,
+    players::{actor::Actor, player::Player},
 };
 
 use log::{error, info};
 
-struct MatchController {
+struct MatchController<'a> {
     settings: Settings,
-    players: Vec<Player>,
+    players: Vec<Player<'a>>,
     active_turn_index: usize,
 }
 
-impl MatchController {
-    pub(crate) fn new(settings: Settings, shuffler: Box<dyn Shuffler>) -> MatchController {
-        let roles = Role::roles_by_n_players(settings.n_players, &shuffler);
-        let characters = MatchController::get_characters(settings.n_players, &shuffler);
+impl<'a> MatchController<'a> {
+    pub(crate) fn new(settings: Settings, actors: Vec<Box<dyn Actor>>, shuffler: Box<dyn Shuffler>) -> MatchController {
+        let n_players = actors.len();
+        let roles = Role::roles_by_n_players(n_players, &shuffler);
+        let characters = MatchController::get_characters(n_players, &shuffler);
 
         let players: Vec<Player> = roles
             .into_iter()
             .zip(characters)
-            .map(|(role, character)| Player {
+            .zip(actors)
+            .map(|((role, character), actor)| Player {
                 role: role,
                 character: character,
+                actor: actor,
             })
             .collect();
 
@@ -85,6 +88,16 @@ impl MatchController {
         ).iter().map(|player| **player.get_character()).collect()
     }
     */
+
+    // executes the turn of the current player, recomputes the current player at the end
+    pub(crate) fn turn(&mut self) {
+        self.active_turn_index += 1;
+        // a bit extra but this handles increasing the turn index by more than one
+        // in order to skip the next player's turn if it's ever needed.
+        if self.active_turn_index >= self.players.len() {
+            self.active_turn_index -= self.players.len();
+        }
+    }
 }
 
 #[cfg(test)]
@@ -92,25 +105,38 @@ mod tests {
     use std::collections::HashMap;
 
     use crate::game::shuffler::{MockShuffler, ReverseShuffler};
+    use crate::players::bots::base_bot::BaseBot;
 
     use super::*;
 
     #[test]
     fn test_role_assignment() {
-        let roles = count_roles(&MatchController::new(Settings::with_players(5), Box::new(MockShuffler)));
+        let actors = generate_base_bot_actors(5);
+        let roles = count_roles(&MatchController::new(
+            Settings::with_players(5),
+            actors,
+            Box::new(MockShuffler),
+        ));
         assert_eq!(*roles.get(&Role::SHERIFF).unwrap(), 1);
         assert_eq!(*roles.get(&Role::DEPUTY).unwrap(), 1);
         assert_eq!(*roles.get(&Role::OUTLAW).unwrap(), 2);
         assert_eq!(*roles.get(&Role::RENEGADE).unwrap(), 1);
 
-        let roles = count_roles(&MatchController::new(Settings::with_players(8), Box::new(MockShuffler)));
+        let actors = generate_base_bot_actors(8);
+        let roles = count_roles(&MatchController::new(
+            Settings::with_players(8),
+            actors,
+            Box::new(MockShuffler),
+        ));
         assert_eq!(*roles.get(&Role::SHERIFF).unwrap(), 1);
         assert_eq!(*roles.get(&Role::DEPUTY).unwrap(), 2);
         assert_eq!(*roles.get(&Role::OUTLAW).unwrap(), 3);
         assert_eq!(*roles.get(&Role::RENEGADE).unwrap(), 2);
 
+        let actors = generate_base_bot_actors(10);
         let roles = count_roles(&MatchController::new(
             Settings::with_players(10),
+            actors,
             Box::new(MockShuffler),
         ));
         assert_eq!(*roles.get(&Role::SHERIFF).unwrap(), 1);
@@ -132,10 +158,20 @@ mod tests {
 
     #[test]
     fn test_sheriff_starts() {
-        let ctr = MatchController::new(Settings::default(), Box::new(MockShuffler));
+        let actors = generate_base_bot_actors(5);
+        let ctr = MatchController::new(Settings::default(), actors, Box::new(MockShuffler));
         assert_eq!(ctr.players[ctr.active_turn_index].role, Role::SHERIFF);
 
-        let ctr = MatchController::new(Settings::default(), Box::new(ReverseShuffler));
+        let actors = generate_base_bot_actors(5);
+        let ctr = MatchController::new(Settings::default(), actors, Box::new(ReverseShuffler));
         assert_eq!(ctr.players[ctr.active_turn_index].role, Role::SHERIFF);
+    }
+
+    fn generate_base_bot_actors<'a>(n: usize) -> Vec<Box<dyn Actor<'a>>> {
+        let actors_template: Vec<BaseBot> = vec![BaseBot {}; n];
+        actors_template
+            .iter()
+            .map(|a| Box::new(a.clone()) as Box<dyn Actor>)
+            .collect()
     }
 }

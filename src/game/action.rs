@@ -56,3 +56,45 @@ impl ActionRange {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::game::action::ActionRange;
+
+    #[test]
+    fn test_action_range_all() {
+        let elements = vec![1, 2, 3, 4, 5];
+        let targets: Vec<i32> = ActionRange::get_targets(&elements, 0, ActionRange::Anyone)
+            .into_iter()
+            .map(|x| *x)
+            .collect();
+        assert_eq!(targets, elements);
+    }
+
+    #[test]
+    fn test_action_range_all_but_self() {
+        let elements = vec![1, 2, 3, 4, 5];
+        let targets: Vec<i32> = ActionRange::get_targets(&elements, 1, ActionRange::AnyoneButSelf)
+            .into_iter()
+            .map(|x| *x)
+            .collect();
+        assert_eq!(targets, vec![1, 3, 4, 5]);
+    }
+
+    #[test]
+    fn test_action_range_distance() {
+        let elements = vec![1, 2, 3, 4, 5];
+        let targets: Vec<i32> = ActionRange::get_targets(&elements, 0, ActionRange::Distance(2))
+            .into_iter()
+            .map(|x| *x)
+            .collect();
+        assert_eq!(targets, vec![4, 3]);
+
+        let elements = vec![1, 2, 3, 4, 5];
+        let targets: Vec<i32> = ActionRange::get_targets(&elements, 2, ActionRange::Distance(1))
+            .into_iter()
+            .map(|x| *x)
+            .collect();
+        assert_eq!(targets, vec![2, 4]);
+    }
+}

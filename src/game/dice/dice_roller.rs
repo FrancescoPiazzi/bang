@@ -1,17 +1,18 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 use log::{error, trace};
 
 use super::die::StatedDie;
 use super::die_face::DieFace;
 use super::die_state::DieState;
+use crate::game::dice::chooser::Chooser;
 
 pub(crate) struct DiceRoller {
     dice: Vec<StatedDie>,
 }
 
 impl DiceRoller {
-    pub(crate) fn new(dice: Vec<HashSet<DieFace>>) -> DiceRoller {
+    pub(crate) fn new(dice: Vec<Vec<DieFace>>) -> DiceRoller {
         DiceRoller {
             dice: dice
                 .into_iter()
@@ -23,7 +24,7 @@ impl DiceRoller {
         }
     }
 
-    pub(crate) fn throw(&mut self, dice_values_iter: &mut impl Iterator<Item = DieFace>) -> DiceRollResult {
+    pub(crate) fn throw(&mut self, dice_values_chooser: &mut impl Chooser<DieFace>) -> DiceRollResult {
         trace!("🎲 throwing dice");
 
         let mut result: DiceRollResult = DiceRollResult::new();
@@ -32,16 +33,16 @@ impl DiceRoller {
             if let Some(state) = &mut die.state {
                 // die has a state -> it has already been thrown
                 if state.is_throwable() {
-                    if let Some(roll_result) = dice_values_iter.next() {
-                        state.set_face(roll_result);
+                    if let Some(roll_result) = dice_values_chooser.choose(&die.faces) {
+                        state.set_face(roll_result.clone());
                     } else {
                         error!("Dice value iterator did not yeld a value")
                     }
                 }
             } else {
                 // stateless die, never thrown, initialize it
-                if let Some(roll_result) = dice_values_iter.next() {
-                    die.state = Some(DieState::new(roll_result));
+                if let Some(roll_result) = dice_values_chooser.choose(&die.faces) {
+                    die.state = Some(DieState::new(roll_result.clone()));
                 } else {
                     error!("Dice value iterator did not yeld a value")
                 }
@@ -117,18 +118,18 @@ impl DiceRoller {
 }
 
 #[derive(Debug)]
-pub(crate) struct DiceRollResult(HashMap<DieFace, u16>);
+pub(crate) struct DiceRollResult(HashMap<DieFace, usize>);
 
 impl DiceRollResult {
     pub(crate) fn new() -> DiceRollResult {
         DiceRollResult(HashMap::new())
     }
 
-    pub(crate) fn from(hash_map: HashMap<DieFace, u16>) -> DiceRollResult {
+    pub(crate) fn from(hash_map: HashMap<DieFace, usize>) -> DiceRollResult {
         DiceRollResult(hash_map)
     }
 
-    pub(crate) fn get(&self, face: &DieFace) -> u16 {
+    pub(crate) fn get(&self, face: &DieFace) -> usize {
         *self.0.get(face).unwrap_or(&0)
     }
 }
@@ -136,6 +137,7 @@ impl DiceRollResult {
 #[cfg(test)]
 mod tests {
     use std::array;
+    use std::cell::Cell;
 
     use crate::game::dice::die_face::DieFace::*;
 
@@ -150,41 +152,45 @@ mod tests {
         Shoot1, Shoot1, Shoot1, Shoot1, Shoot1, Shoot2, Shoot2, Shoot2, Shoot2, Shoot2,
     ];
 
-    struct LoopingFaceGenerator {
-        count: usize,
+    // simple iterator for testing, implemented only for DiceFace
+    struct LoopingChooser {
+        count: Cell<usize>,
         looped_values: Vec<DieFace>,
     }
 
-    impl LoopingFaceGenerator {
-        fn new(looped_values: Vec<DieFace>) -> LoopingFaceGenerator {
-            LoopingFaceGenerator {
-                count: 0,
+    impl LoopingChooser {
+        fn new(looped_values: Vec<DieFace>) -> LoopingChooser {
+            LoopingChooser {
+                count: Cell::new(0),
                 looped_values: looped_values,
             }
         }
     }
 
-    impl Iterator for LoopingFaceGenerator {
-        type Item = DieFace;
+    impl Chooser<DieFace> for LoopingChooser {
+        fn choose(&self, _: &Vec<DieFace>) -> Option<DieFace> {
+            let current_count = self.count.get();
+            let nxt = &self.looped_values[self.count.get()];
 
-        fn next(&mut self) -> Option<Self::Item> {
-            let nxt = self.looped_values[self.count];
-            self.count = if self.count + 1 < self.looped_values.len() {
-                self.count + 1
+            let next_count = if current_count + 1 < self.looped_values.len() {
+                current_count + 1
             } else {
                 0
             };
-            println!("throw: {:?}", nxt);
-            Some(nxt)
+
+            self.count.set(next_count);
+
+            Some(nxt).cloned()
         }
     }
 
     #[test]
     fn test_dice_throw() {
-        let dice: [HashSet<DieFace>; N_DICE_PER_THROW] = array::from_fn(|_| HashSet::from(STANDARD_DIE_FACES).clone());
+        // TODO probably there's an easier way to do this, this was converted from a [HashSet<DieFace>; N_DICE_PER_THROW]
+        let dice: [Vec<DieFace>; N_DICE_PER_THROW] = array::from_fn(|_| Vec::from(STANDARD_DIE_FACES).clone());
         let mut dice_roller = DiceRoller::new(dice.into());
 
-        let mut generator = LoopingFaceGenerator::new(PSEUDO_RANDOM_FACES.to_vec());
+        let mut generator = LoopingChooser::new(PSEUDO_RANDOM_FACES.to_vec());
 
         let res = dice_roller.throw(&mut generator);
         println!("{:?}", res);
@@ -207,10 +213,11 @@ mod tests {
 
     #[test]
     fn test_lock_unlock() {
-        let dice: [HashSet<DieFace>; N_DICE_PER_THROW] = array::from_fn(|_| HashSet::from(STANDARD_DIE_FACES).clone());
+        // TODO probably there's an easier way to do this, this was converted from a [HashSet<DieFace>; N_DICE_PER_THROW]
+        let dice: [Vec<DieFace>; N_DICE_PER_THROW] = array::from_fn(|_| Vec::from(STANDARD_DIE_FACES).clone());
         let mut dice_roller = DiceRoller::new(dice.into());
 
-        let mut generator = LoopingFaceGenerator::new(SHOOT_1_2_FACES.to_vec());
+        let mut generator = LoopingChooser::new(SHOOT_1_2_FACES.to_vec());
 
         let _ = dice_roller.throw(&mut generator);
 

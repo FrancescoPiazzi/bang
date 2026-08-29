@@ -9,14 +9,16 @@ pub(crate) enum DieFace {
 
     NonBlockingDynamite,
     HealingGatling,
-    // DoubleShot
-    // DobleBeer
+    Shoot1or2,
+    Shoot2or3,
+    // DoubleShot,
+    // DobleBeer,
 }
 
 impl DieFace {
     pub(crate) fn is_face_locking(&self) -> bool {
         match *self {
-            DieFace::Dynamite => true,
+            DieFace::Dynamite => true, // rule 4.2.1
             _ => false,
         }
     }

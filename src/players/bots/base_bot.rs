@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::game::action::ActionType;
+use crate::game::action::{ActionType, DiceLockUpdate};
 use crate::game::characters::character::PlayableCharacter;
 use crate::game::dice::dice_roller::DiceRollResult;
 use crate::game::dice::die_face::DieFace;
@@ -13,8 +13,12 @@ pub(crate) struct BaseBot {}
 impl<'a> Actor<'a> for BaseBot {
     fn receive_match_state(&mut self, me: &Box<dyn PlayableCharacter>, everyone: &Vec<&Box<dyn PlayableCharacter>>) {}
 
-    fn update_dice_locks(&mut self, dice_roll: &DiceRollResult) -> HashMap<DieFace, usize> {
-        HashMap::new()
+    fn throw_dice_again(&mut self, dice_roll: &DiceRollResult) -> bool {
+        false
+    }
+
+    fn get_dice_locks(&mut self, dice_roll: &DiceRollResult) -> DiceLockUpdate {
+        DiceLockUpdate::default()
     }
 
     fn choose_target(

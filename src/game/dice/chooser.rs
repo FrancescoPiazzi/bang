@@ -6,7 +6,7 @@ pub(crate) trait Chooser<T: Clone> {
     fn choose(&self, iterator: &Vec<T>) -> Option<T>;
 }
 
-struct RandomChooser {}
+pub(crate) struct RandomChooser {}
 
 impl<T: Clone> Chooser<T> for RandomChooser {
     fn choose(&self, iterator: &Vec<T>) -> Option<T> {

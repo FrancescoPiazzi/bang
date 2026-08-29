@@ -1,4 +1,5 @@
 use crate::game::dice::dice_roller::DiceRollResult;
+use crate::game::dice::die_face::DieFace;
 use crate::game::{characters::base_character::CharacterData, damage_type::DamageType};
 
 use super::character::PlayableCharacter;
@@ -8,8 +9,6 @@ pub(crate) struct SuzieLafette {
 }
 
 impl PlayableCharacter for SuzieLafette {
-    fn build_dice_roller(&mut self) {}
-
     fn handle_dice_roll(&mut self, roll: &DiceRollResult) {}
 
     fn take_damage(&mut self, amount: u16, damage_type: DamageType) {
@@ -25,10 +24,6 @@ impl PlayableCharacter for SuzieLafette {
     fn end_turn(&mut self) {
         // if base_character.dice_roller has no Shoot1, Shoot2, or DoubleShot then heal
     }
-
-    /*fn get_target_options(&self) -> {
-
-    }*/
 
     fn give_arrows(&mut self, amount: u16) {
         self.base_character.give_arrows(amount);

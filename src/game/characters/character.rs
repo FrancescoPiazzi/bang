@@ -1,8 +1,12 @@
+use std::collections::{HashMap, HashSet};
+
 use super::characters::*;
 
 use crate::game::characters::base_character::CharacterData;
 use crate::game::damage_type::DamageType;
+use crate::game::dice::combo::dice_combo::DiceCombo;
 use crate::game::dice::dice_roller::DiceRollResult;
+use crate::game::dice::die_face::DieFace;
 
 use enum_dispatch::enum_dispatch;
 
@@ -16,8 +20,23 @@ pub(crate) enum CharacterType {
  */
 #[enum_dispatch]
 pub(crate) trait PlayableCharacter {
-    // no idea what I was thinking when I put this here, not that it necessarily doesn't make sense, I just have no idea why
-    fn build_dice_roller(&mut self);
+    // TODO: some of these methods don't need self at all, figure out if it makes sense to remove it
+    // and if yes, how, since you can't keep a method that doesn't take &self in an #[enum_dispatch] trait
+
+    // allows characters to throw different dices, no character in the original rules has this ability
+    // however, it makes it easy to implements some characters, while also keeping room open for characters
+    // to naturally throw different dices
+    fn get_dice_faces(&self) -> Vec<DieFace> {
+        Archetype::get_standard_dice_faces()
+    }
+
+    fn get_dice_combos(&self) -> Vec<DiceCombo> {
+        Archetype::get_standard_dice_combos()
+    }
+
+    fn get_max_rerolls(&self, settings_max_rerolls: u16) -> u16 {
+        settings_max_rerolls
+    }
 
     // consider mostly resolving this in the controller, with each PlayableCharacter only exposing methods that differentiate
     // behaviour between eachother
@@ -30,9 +49,6 @@ pub(crate) trait PlayableCharacter {
     fn start_turn(&mut self);
 
     fn end_turn(&mut self);
-
-    // hopefully this can be moved in the impl Archetype block
-    // fn get_target_options(&self) -> Vec<Box<&PlayableCharacter>>;
 
     fn give_arrows(&mut self, amount: u16);
 
@@ -53,5 +69,26 @@ impl Archetype {
                 base_character: CharacterData::new(8),
             }),
         }
+    }
+
+    pub(crate) fn get_standard_dice_faces() -> Vec<DieFace> {
+        Vec::from([
+            DieFace::Shoot1,
+            DieFace::Shoot2,
+            DieFace::Arrow,
+            DieFace::Dynamite,
+            DieFace::Beer,
+            DieFace::Gatling,
+        ])
+    }
+
+    pub(crate) fn get_standard_dice_combos() -> Vec<DiceCombo> {
+        let mut dynamite = HashMap::new();
+        dynamite.insert(DieFace::Dynamite, 3);
+
+        let mut gatling = HashMap::new();
+        gatling.insert(DieFace::Gatling, 3);
+
+        vec![DiceCombo::from(dynamite), DiceCombo::from(gatling)]
     }
 }

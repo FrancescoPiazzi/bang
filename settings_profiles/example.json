@@ -1,6 +1,8 @@
 {
     "n_players": 6,
 
+    "max_rerolls": 2,
+
     "dice_thrown": 5,
     "dice_throw_type": "AUTOMATIC_FOR_BOTS"
 }

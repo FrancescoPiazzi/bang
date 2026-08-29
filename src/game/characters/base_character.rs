@@ -28,8 +28,6 @@ impl CharacterData {
         }
     }
 
-    pub(crate) fn build_dice_roller() {}
-
     pub(crate) fn take_damage(&mut self, amount: u16, _damage_type: DamageType) -> bool {
         self.hp = max(self.hp as i16 - amount as i16, 0) as u16;
         self.alive = self.hp > 0;
@@ -40,12 +38,6 @@ impl CharacterData {
     pub(crate) fn heal(&mut self, amount: u16) {
         self.hp = min(self.hp + amount, self.max_hp);
     }
-
-    pub(crate) fn start_turn() {}
-
-    pub(crate) fn end_turn() {}
-
-    pub(crate) fn get_target_options() {}
 
     pub(crate) fn give_arrows(&mut self, amount: u16) {
         self.arrows += amount;

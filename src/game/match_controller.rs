@@ -5,6 +5,11 @@ use crate::{
     game::{
         action::ActionRange,
         characters::character::{Archetype, CharacterType, PlayableCharacter},
+        dice::{
+            chooser::RandomChooser,
+            dice_roller::DiceRoller,
+            die_face::{self, DieFace},
+        },
         settings::Settings,
         shuffler::Shuffler,
     },
@@ -15,6 +20,7 @@ use log::{error, info};
 
 struct MatchController<'a> {
     settings: Settings,
+    dice_chooser: RandomChooser,
     players: Vec<Player<'a>>,
     active_turn_index: usize,
 }
@@ -50,6 +56,7 @@ impl<'a> MatchController<'a> {
 
         MatchController {
             settings: settings,
+            dice_chooser: RandomChooser {},
             players: players,
             active_turn_index: first_turn_index,
         }
@@ -80,17 +87,63 @@ impl<'a> MatchController<'a> {
     }
 
     // returns the possible target options for the currently active player
-    // TODO
-    /*pub(crate) fn get_target_options(&self, range: ActionRange) -> Vec<Box<&dyn PlayableCharacter>>{
-        ActionRange::get_targets(
-            &self.players,
-            self.active_turn_index, range
-        ).iter().map(|player| **player.get_character()).collect()
+    pub(crate) fn get_target_options(&self, range: ActionRange) -> Vec<&Box<dyn PlayableCharacter>> {
+        ActionRange::get_targets(&self.players, self.active_turn_index, range)
+            .iter()
+            .map(|player| player.get_character())
+            .collect()
     }
-    */
 
     // executes the turn of the current player, recomputes the current player at the end
     pub(crate) fn turn(&mut self) {
+        // get player for this turn
+        let current_player_probably = self.players.get_mut(self.active_turn_index);
+
+        let current_player = if let Some(player) = current_player_probably {
+            player
+        } else {
+            error!(
+                "Invalid active turn index (index: {}, players: {}), setting it to 0",
+                self.active_turn_index,
+                self.players.len()
+            );
+            self.active_turn_index = 0;
+            self.players.get_mut(0).unwrap()
+        };
+
+        let current_character = &mut current_player.character;
+        let current_actor = &mut current_player.actor;
+
+        // get the dice that player has to throw and build a dice roller object with them
+        let mut dice_roller = DiceRoller::new(
+            vec![current_character.get_dice_faces()]
+                .into_iter()
+                .cycle()
+                .take(self.settings.dice_thrown)
+                .collect(),
+        );
+
+        // TODO: if expansion is enabled, give possibility to swap dice
+        // (perhaps put the code to do it before building the dice roller)
+
+        // first roll (don't let player lock dice here for rule 3.1)
+        let mut dice_roll = dice_roller.throw(&mut self.dice_chooser);
+
+        // handle eventual rerolls
+        let mut rerolls_left = current_character.get_max_rerolls(self.settings.max_rerolls);
+        while rerolls_left > 0 {
+            if current_actor.throw_dice_again(&dice_roll){
+                dice_roller.update_dice_locks(current_actor.get_dice_locks(&dice_roll));
+                dice_roll = dice_roller.throw(&mut self.dice_chooser);
+            } else {
+                break;
+            }
+            rerolls_left -= 1;
+        }
+
+        // resolve dice, following the order in rule 4
+        //     after each dice resolution, check for match end
+
         self.active_turn_index += 1;
         // a bit extra but this handles increasing the turn index by more than one
         // in order to skip the next player's turn if it's ever needed.

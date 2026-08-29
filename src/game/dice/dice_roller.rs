@@ -5,6 +5,7 @@ use log::{error, trace};
 use super::die::StatedDie;
 use super::die_face::DieFace;
 use super::die_state::DieState;
+use crate::game::action::{DiceLockUpdate, LockUnlock};
 use crate::game::dice::chooser::Chooser;
 
 pub(crate) struct DiceRoller {
@@ -57,6 +58,23 @@ impl DiceRoller {
         return result;
     }
 
+    /* performs a full lock status update */
+    pub(crate) fn update_dice_locks(&mut self, lock_updates: DiceLockUpdate) -> Vec<Result<usize, usize>> {
+        lock_updates.into_iter().map(|lock_update| {
+            self.lock_unlock_amount(
+                lock_update.die_face, 
+                lock_update.amount, 
+
+                // TODO: use LockUnlock all the way down instead of this random mapping here
+                match lock_update.lock_unlock {
+                    LockUnlock::Lock => true,
+                    LockUnlock::Unlock => false
+                }
+            )
+        }).collect()
+    }
+
+    /*
     /* locks a certain amount of faces for a die */
     pub(crate) fn lock_dice_amount(&mut self, face: DieFace, amount: usize) -> Result<usize, usize> {
         self.lock_unlock_amount(face, Some(amount), true)
@@ -69,24 +87,21 @@ impl DiceRoller {
 
     /* locks all dice with a given face */
     pub(crate) fn lock_dice(&mut self, face: DieFace) -> Result<usize, usize> {
-        self.lock_unlock(face, true)
+        self.lock_unlock_amount(face, None, true)
     }
 
     /* unlocks all dice with a given face */
     pub(crate) fn unlock_dice(&mut self, face: DieFace) -> Result<usize, usize> {
-        self.lock_unlock(face, false)
+        self.lock_unlock_amount(face, None, false)
     }
+    */
 
-    fn lock_unlock(&mut self, face: DieFace, lock: bool) -> Result<usize, usize> {
-        self.lock_unlock_amount(face, None, lock)
-    }
-
-    fn lock_unlock_amount(&mut self, face: DieFace, amount: Option<usize>, lock: bool) -> Result<usize, usize> {
+    fn lock_unlock_amount(&mut self, face: DieFace, amount: Option<u16>, lock: bool) -> Result<usize, usize> {
         let mut matching_dice: Vec<&mut StatedDie> = self.get_matching_dice_mut(face, lock);
-        let actual_amount = amount.unwrap_or(matching_dice.len());
+        let actual_amount = amount.unwrap_or(matching_dice.len() as u16);
 
-        if matching_dice.len() >= actual_amount {
-            matching_dice.iter_mut().take(actual_amount).for_each(|die| {
+        if matching_dice.len() as u16 >= actual_amount {
+            matching_dice.iter_mut().take(actual_amount as usize).for_each(|die| {
                 if let Some(ref mut state) = die.state {
                     state.set_locked_by_player(lock);
                 } else {
@@ -95,12 +110,12 @@ impl DiceRoller {
             });
 
             // println!("matching_dice after lock/unlock: {:?}", cln.iter().map(|die| die.state).collect::<Vec<Option<DieState>>>());
-            println!(
-                "dice after lock/unlock: {:?}",
-                self.dice.iter().map(|die| die.state).collect::<Vec<Option<DieState>>>()
-            );
+            // println!(
+            //     "dice after lock/unlock: {:?}",
+            //     self.dice.iter().map(|die| die.state).collect::<Vec<Option<DieState>>>()
+            // );
 
-            Ok(actual_amount)
+            Ok(actual_amount as usize)
         } else {
             Err(matching_dice.len())
         }
@@ -139,7 +154,8 @@ mod tests {
     use std::array;
     use std::cell::Cell;
 
-    use crate::game::dice::die_face::DieFace::*;
+    use crate::game::action::DieLockUpdate;
+use crate::game::dice::die_face::DieFace::*;
 
     use super::*;
 
@@ -220,10 +236,21 @@ mod tests {
         let mut generator = LoopingChooser::new(SHOOT_1_2_FACES.to_vec());
 
         let _ = dice_roller.throw(&mut generator);
+        let dice_lock_update = DiceLockUpdate::new(vec![
+            DieLockUpdate::new(Shoot1, Some(100), LockUnlock::Lock)
+        ]);
+        let lock_res = dice_roller.update_dice_locks(dice_lock_update);
+        assert_eq!(lock_res.len(), 1);
+        assert_eq!(*lock_res.get(0).unwrap(), Err(5));
 
-        assert_eq!(dice_roller.lock_dice_amount(Shoot1, 100), Err(5));
-        assert_eq!(dice_roller.lock_dice_amount(Shoot1, 2), Ok(2));
-        assert_eq!(dice_roller.lock_dice(Beer), Ok(0));
+        let dice_lock_update = DiceLockUpdate::new(vec![
+            DieLockUpdate::new(Shoot1, Some(2), LockUnlock::Lock),
+            DieLockUpdate::new(Beer, None, LockUnlock::Lock),
+        ]);
+        let lock_res = dice_roller.update_dice_locks(dice_lock_update);
+        assert_eq!(lock_res.len(), 2);
+        assert_eq!(*lock_res.get(0).unwrap(), Ok(2));
+        assert_eq!(*lock_res.get(1).unwrap(), Ok(0));
 
         let res = dice_roller.throw(&mut generator);
 
@@ -234,8 +261,15 @@ mod tests {
         assert_eq!(res.get(&Gatling), 0);
         assert_eq!(res.get(&Dynamite), 0);
 
-        assert_eq!(dice_roller.unlock_dice_amount(Shoot1, 1), Ok(1));
-        assert_eq!(dice_roller.lock_dice(Shoot2), Ok(3));
+
+        let dice_lock_update = DiceLockUpdate::new(vec![
+            DieLockUpdate::new(Shoot1, Some(1), LockUnlock::Unlock),
+            DieLockUpdate::new(Shoot2, None, LockUnlock::Lock),
+        ]);
+        let lock_res = dice_roller.update_dice_locks(dice_lock_update);
+        assert_eq!(lock_res.len(), 2);
+        assert_eq!(*lock_res.get(0).unwrap(), Ok(1));
+        assert_eq!(*lock_res.get(1).unwrap(), Ok(3));
 
         let res = dice_roller.throw(&mut generator);
 

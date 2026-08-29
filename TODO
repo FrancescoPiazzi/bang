@@ -4,3 +4,5 @@
 - [ ] implement a few characters
 - [ ] implement a way to load settings from a file
 - [ ] DiceRollResult(HashMap<DieFace, u16>) -> DiceRollResult(HashMap<DieFace, usize>)
+- [ ] decide a criterion for when to use u16 and when to use usize and apply it
+- [ ] trim down the pub(crate) declarations

@@ -1,7 +1,10 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 use super::characters::*;
 
+use crate::game::action::ActionRange;
+use crate::game::action::ActionType;
+use crate::game::action::NonReferencingInteraction;
 use crate::game::characters::base_character::CharacterData;
 use crate::game::damage_type::DamageType;
 use crate::game::dice::combo::dice_combo::DiceCombo;
@@ -62,7 +65,7 @@ pub(crate) enum Archetype {
     SuzieLafette,
 }
 
-impl Archetype {
+impl<'ch> Archetype {
     pub(crate) fn new(character_type: CharacterType) -> Box<dyn PlayableCharacter> {
         match character_type {
             CharacterType::SuzieLafette => Box::new(SuzieLafette {
@@ -83,12 +86,20 @@ impl Archetype {
     }
 
     pub(crate) fn get_standard_dice_combos() -> Vec<DiceCombo> {
-        let mut dynamite = HashMap::new();
-        dynamite.insert(DieFace::Dynamite, 3);
-
-        let mut gatling = HashMap::new();
-        gatling.insert(DieFace::Gatling, 3);
-
-        vec![DiceCombo::from(dynamite), DiceCombo::from(gatling)]
+        vec![
+            DiceCombo::new(
+                [(DieFace::Dynamite, 3)].into_iter().collect(),
+                vec![
+                    NonReferencingInteraction::new(ActionType::Damage(DamageType::Dynamite, 1), ActionRange::Myself)
+                ]
+            ), 
+            DiceCombo::new(
+                [(DieFace::Gatling, 3)].into_iter().collect(),
+                vec![
+                    NonReferencingInteraction::new(ActionType::DiscardAllArrows, ActionRange::Myself),
+                    NonReferencingInteraction::new(ActionType::Damage(DamageType::Gatling, 1), ActionRange::AnyoneButSelf)
+                ]
+            )
+        ]
     }
 }

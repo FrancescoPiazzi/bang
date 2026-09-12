@@ -5,11 +5,7 @@ use crate::{
     game::{
         action::ActionRange,
         characters::character::{Archetype, CharacterType, PlayableCharacter},
-        dice::{
-            chooser::RandomChooser,
-            dice_roller::DiceRoller,
-            die_face::{self, DieFace},
-        },
+        dice::{chooser::RandomChooser, dice_roller::DiceRoller, die_face},
         settings::Settings,
         shuffler::Shuffler,
     },
@@ -43,11 +39,13 @@ impl<'a> MatchController<'a> {
             .collect();
 
         // rule 2.5
+        // TODO: an index is annoying to compute and there's no way to check its validity at compile time
+        // use an infinite iterator created with .cycle() over the players instead
         let first_turn_index = players
             .iter()
             .enumerate()
-            .filter(|(i, player)| player.role == Role::SHERIFF)
-            .map(|(i, player)| i)
+            .filter(|(_i, player)| player.role == Role::SHERIFF)
+            .map(|(i, _player)| i)
             .next()
             .unwrap_or_else(|| {
                 error!("Failed to find the sheriff, first player begins");
@@ -132,7 +130,7 @@ impl<'a> MatchController<'a> {
         // handle eventual rerolls
         let mut rerolls_left = current_character.get_max_rerolls(self.settings.max_rerolls);
         while rerolls_left > 0 {
-            if current_actor.throw_dice_again(&dice_roll){
+            if current_actor.throw_dice_again(&dice_roll) {
                 dice_roller.update_dice_locks(current_actor.get_dice_locks(&dice_roll));
                 dice_roll = dice_roller.throw(&mut self.dice_chooser);
             } else {
@@ -141,8 +139,36 @@ impl<'a> MatchController<'a> {
             rerolls_left -= 1;
         }
 
+        // handle combos
+        for combo in current_character.get_dice_combos() {
+            if combo.is_triggered(&dice_roll) {
+                todo!();
+
+                if self.is_match_terminated() {
+                    return;
+                }
+            }
+        }
+
         // resolve dice, following the order in rule 4
-        //     after each dice resolution, check for match end
+        for die_face in dice_roll.into_iter() {
+            match die_face {
+                die_face::DieFace::Shoot1 => todo!(),
+                die_face::DieFace::Shoot2 => todo!(),
+                die_face::DieFace::Beer => todo!(),
+                die_face::DieFace::Arrow => todo!(),
+                die_face::DieFace::Dynamite => todo!(),
+                die_face::DieFace::Gatling => todo!(),
+                die_face::DieFace::NonBlockingDynamite => todo!(),
+                die_face::DieFace::HealingGatling => todo!(),
+                die_face::DieFace::Shoot1or2 => todo!(),
+                die_face::DieFace::Shoot2or3 => todo!(),
+            };
+
+            if self.is_match_terminated() {
+                return;
+            }
+        }
 
         self.active_turn_index += 1;
         // a bit extra but this handles increasing the turn index by more than one
@@ -150,6 +176,27 @@ impl<'a> MatchController<'a> {
         if self.active_turn_index >= self.players.len() {
             self.active_turn_index -= self.players.len();
         }
+    }
+
+    // TODO: return Option<Vec<Roles that won>>
+    fn is_match_terminated(&self) -> bool {
+        // sheriff is dead
+        let sheriff_probably = self.players.iter().filter(|player| player.role == Role::SHERIFF).next();
+
+        let Some(sheriff) = sheriff_probably else {
+            error!("Failed to find the sheriff, pretend it never existed and don't end the match");
+            return false;
+        };
+
+        if !sheriff.character.is_alive() {
+            return true;
+        }
+
+        // only sheriff and deputy are left
+        self.players
+            .iter()
+            .filter(|player| player.role != Role::SHERIFF && player.role != Role::DEPUTY)
+            .all(|player| player.character.is_alive())
     }
 }
 

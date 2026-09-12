@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 
 use log::{error, trace};
 
@@ -60,18 +60,20 @@ impl DiceRoller {
 
     /* performs a full lock status update */
     pub(crate) fn update_dice_locks(&mut self, lock_updates: DiceLockUpdate) -> Vec<Result<usize, usize>> {
-        lock_updates.into_iter().map(|lock_update| {
-            self.lock_unlock_amount(
-                lock_update.die_face, 
-                lock_update.amount, 
-
-                // TODO: use LockUnlock all the way down instead of this random mapping here
-                match lock_update.lock_unlock {
-                    LockUnlock::Lock => true,
-                    LockUnlock::Unlock => false
-                }
-            )
-        }).collect()
+        lock_updates
+            .into_iter()
+            .map(|lock_update| {
+                self.lock_unlock_amount(
+                    lock_update.die_face,
+                    lock_update.amount,
+                    // TODO: use LockUnlock all the way down instead of this random mapping here
+                    match lock_update.lock_unlock {
+                        LockUnlock::Lock => true,
+                        LockUnlock::Unlock => false,
+                    },
+                )
+            })
+            .collect()
     }
 
     /*
@@ -133,19 +135,35 @@ impl DiceRoller {
 }
 
 #[derive(Debug)]
-pub(crate) struct DiceRollResult(HashMap<DieFace, usize>);
+pub(crate) struct DiceRollResult(BTreeMap<DieFace, usize>);
 
 impl DiceRollResult {
     pub(crate) fn new() -> DiceRollResult {
-        DiceRollResult(HashMap::new())
+        DiceRollResult(BTreeMap::new())
     }
 
-    pub(crate) fn from(hash_map: HashMap<DieFace, usize>) -> DiceRollResult {
-        DiceRollResult(hash_map)
+    pub(crate) fn from(map: BTreeMap<DieFace, usize>) -> DiceRollResult {
+        DiceRollResult(map)
     }
 
     pub(crate) fn get(&self, face: &DieFace) -> usize {
         *self.0.get(face).unwrap_or(&0)
+    }
+}
+
+// turn this into an iterator that yields die faces every die face rolled, in order as per rule 4.
+impl IntoIterator for DiceRollResult {
+    type Item = DieFace;
+    type IntoIter = std::iter::FlatMap<
+        std::collections::btree_map::IntoIter<DieFace, usize>,
+        std::iter::RepeatN<DieFace>,
+        fn((DieFace, usize)) -> std::iter::RepeatN<DieFace>,
+    >;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0
+            .into_iter()
+            .flat_map(|(face, count)| std::iter::repeat_n(face, count))
     }
 }
 
@@ -155,7 +173,7 @@ mod tests {
     use std::cell::Cell;
 
     use crate::game::action::DieLockUpdate;
-use crate::game::dice::die_face::DieFace::*;
+    use crate::game::dice::die_face::DieFace::*;
 
     use super::*;
 
@@ -236,9 +254,7 @@ use crate::game::dice::die_face::DieFace::*;
         let mut generator = LoopingChooser::new(SHOOT_1_2_FACES.to_vec());
 
         let _ = dice_roller.throw(&mut generator);
-        let dice_lock_update = DiceLockUpdate::new(vec![
-            DieLockUpdate::new(Shoot1, Some(100), LockUnlock::Lock)
-        ]);
+        let dice_lock_update = DiceLockUpdate::new(vec![DieLockUpdate::new(Shoot1, Some(100), LockUnlock::Lock)]);
         let lock_res = dice_roller.update_dice_locks(dice_lock_update);
         assert_eq!(lock_res.len(), 1);
         assert_eq!(*lock_res.get(0).unwrap(), Err(5));
@@ -260,7 +276,6 @@ use crate::game::dice::die_face::DieFace::*;
         assert_eq!(res.get(&Arrow), 0);
         assert_eq!(res.get(&Gatling), 0);
         assert_eq!(res.get(&Dynamite), 0);
-
 
         let dice_lock_update = DiceLockUpdate::new(vec![
             DieLockUpdate::new(Shoot1, Some(1), LockUnlock::Unlock),

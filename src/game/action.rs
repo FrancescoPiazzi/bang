@@ -1,11 +1,32 @@
-use crate::game::{characters::character::PlayableCharacter, dice::die_face::DieFace, damage_type::DamageType};
+use crate::game::{characters::character::PlayableCharacter, damage_type::DamageType, dice::die_face::DieFace};
 
 // an action a player takes that must be resolved by the controller
 // used to shoot, heal, give arrows, and interact with most of the game features
-pub(crate) struct Interaction<'a> {
+// note: use NonReferencingInteraction if possible to not pollute code with lifetimes
+pub(crate) struct Interaction<'ch> {
     action_type: ActionType,
-    source: ActionSource<'a>,
-    target: &'a dyn PlayableCharacter, // TODO pretty sure reference can be replaced by a Box here
+    source: ActionSource<'ch>,
+    target: &'ch dyn PlayableCharacter,
+}
+
+impl<'ch> Interaction<'ch> {
+    pub(crate) fn new(action_type: ActionType, source: ActionSource<'ch>, target: &'ch dyn PlayableCharacter) -> Interaction<'ch> {
+        Interaction { action_type: action_type, source: source, target: target }
+    }
+}
+
+// an action a player takes that doesn't have a specific target, 
+// since this doesn't need to hold a reference to a character, 
+// it doesn't pollute outside code with lifetimes, also allows for multiple targets
+pub(crate) struct NonReferencingInteraction {
+    action_type: ActionType,
+    action_range: ActionRange,
+}
+
+impl NonReferencingInteraction {
+    pub(crate) fn new(action_type: ActionType, action_range: ActionRange) -> NonReferencingInteraction {
+        NonReferencingInteraction { action_type: action_type, action_range: action_range }
+    }
 }
 
 // the action of locking or unlocking a certain amount of dice before rethrowing them.
@@ -22,22 +43,24 @@ pub(crate) struct DieLockUpdate {
 
 #[derive(Debug)]
 pub(crate) enum ActionType {
-    Shoot(DamageType, u16),
+    Damage(DamageType, u16),
     Heal(u16),
-    GiveArrows(u16),
+    GiveArrows(i16),
+    DiscardAllArrows,
 }
 
-pub(crate) enum ActionSource<'a> {
-    Pile,
-    Character(&'a dyn PlayableCharacter),
+pub(crate) enum ActionSource<'ch> {
+    Pile,   // interactions with the pile, i.e. healing TODO: this and None can probably be handled the same way
+    Character(&'ch dyn PlayableCharacter),  // make somone else the source of an action, no idea if this is ever needed
 }
 
 #[derive(Debug)]
 pub(crate) enum ActionRange {
+    Myself,
     ExactDistance(usize), // used mainly when shooting
-    // DistanceRange(usize, usize),
-    Anyone,          // used by some abilities
-    AnyoneButSelf,   // used by nobody as far as I know but it may be useful, perhaps to implement gatling?
+    DistanceRange(usize, usize),
+    Anyone,
+    AnyoneButSelf,
 }
 
 pub(crate) enum LockUnlock {
@@ -54,6 +77,10 @@ impl ActionRange {
         action_range: ActionRange,
     ) -> Vec<&'a T> {
         match action_range {
+            ActionRange::Myself => {
+                Vec::from([&elements[starting_point]])
+            }
+
             ActionRange::ExactDistance(distance_inner) => {
                 // an exact distance range will always have at most 2 targets
                 let ln = elements.len() as i64;
@@ -66,26 +93,40 @@ impl ActionRange {
                     Vec::from([&elements[first as usize]])
                 }
             }
+
+            ActionRange::DistanceRange(min, mut max) => {
+                if max > elements.len() {
+                    max = elements.len();
+                }
+
+                (min..=max).map(|distance| Self::get_targets(elements, starting_point, ActionRange::ExactDistance(distance))).flatten().collect()
+            }
+            
             ActionRange::AnyoneButSelf => elements
                 .iter()
                 .enumerate()
                 .filter(|(i, _)| starting_point != *i)
                 .map(|(_, element)| element)
                 .collect(),
+            
             ActionRange::Anyone => elements.iter().collect(),
         }
     }
 }
 
 impl DiceLockUpdate {
-    pub(crate) fn new(lock_updates: Vec<DieLockUpdate>) -> DiceLockUpdate{
+    pub(crate) fn new(lock_updates: Vec<DieLockUpdate>) -> DiceLockUpdate {
         DiceLockUpdate(lock_updates)
     }
 }
 
 impl DieLockUpdate {
-    pub(crate) fn new(die_face: DieFace, amount: Option<u16>, lock_unlock: LockUnlock) -> DieLockUpdate{
-        DieLockUpdate { die_face: die_face, lock_unlock: lock_unlock, amount: amount }
+    pub(crate) fn new(die_face: DieFace, amount: Option<u16>, lock_unlock: LockUnlock) -> DieLockUpdate {
+        DieLockUpdate {
+            die_face: die_face,
+            lock_unlock: lock_unlock,
+            amount: amount,
+        }
     }
 }
 
@@ -105,6 +146,9 @@ impl IntoIterator for DiceLockUpdate {
     }
 }
 
+
+// all these test assume internal functioning because of how they compare vectors but I can't be bothered to 
+// do it properly (sort them first)
 #[cfg(test)]
 mod tests {
     use crate::game::action::ActionRange;
@@ -130,7 +174,7 @@ mod tests {
     }
 
     #[test]
-    fn test_action_range_distance() {
+    fn test_action_range_distance_exact() {
         let elements = vec![1, 2, 3, 4, 5];
         let targets: Vec<i32> = ActionRange::get_targets(&elements, 0, ActionRange::ExactDistance(2))
             .into_iter()
@@ -144,5 +188,15 @@ mod tests {
             .map(|x| *x)
             .collect();
         assert_eq!(targets, vec![2, 4]);
+    }
+
+    #[test]
+    fn test_action_range_distance_range() {
+        let elements = vec![1, 2, 3, 4, 5, 6, 7, 8, 9];
+        let targets: Vec<i32> = ActionRange::get_targets(&elements, 0, ActionRange::DistanceRange(1, 3))
+            .into_iter()
+            .map(|x| *x)
+            .collect();
+        assert_eq!(targets, vec![9, 2, 8, 3, 7, 4]);
     }
 }

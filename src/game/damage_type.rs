@@ -3,4 +3,5 @@ pub(crate) enum DamageType {
     Bullet,
     Arrow,
     Gatling,
+    Dynamite
 }

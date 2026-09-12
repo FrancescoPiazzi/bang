@@ -2,16 +2,20 @@ use std::collections::HashMap;
 
 use super::super::dice_roller::DiceRollResult;
 use super::super::die_face::DieFace;
+use crate::game::action::NonReferencingInteraction;
 
-pub(crate) struct DiceCombo(HashMap<DieFace, usize>);
+pub(crate) struct DiceCombo{
+    requisite: HashMap<DieFace, usize>, 
+    actions: Vec<NonReferencingInteraction>
+}
 
-impl DiceCombo {
-    pub(crate) fn from(hash_map: HashMap<DieFace, usize>) -> DiceCombo {
-        DiceCombo { 0: hash_map }
+impl DiceCombo{
+    pub(crate) fn new(hash_map: HashMap<DieFace, usize>, actions: Vec<NonReferencingInteraction>) -> DiceCombo {
+        DiceCombo { requisite: hash_map, actions: actions}
     }
 
-    fn is_triggered(&self, result: &DiceRollResult) -> bool {
-        self.0
+    pub(crate) fn is_triggered(&self, result: &DiceRollResult) -> bool {
+        self.requisite
             .iter()
             .all(|(face_required, count_required)| result.get(&face_required) >= *count_required)
     }
@@ -19,28 +23,32 @@ impl DiceCombo {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::BTreeMap;
+
     use super::*;
 
     #[test]
     fn test_generic_combo() {
-        let combo1 = DiceCombo {
-            0: HashMap::from([(DieFace::Gatling, 1), (DieFace::Arrow, 1), (DieFace::Beer, 1)]),
-        };
-        let combo2 = DiceCombo {
-            0: HashMap::from([(DieFace::Gatling, 3), (DieFace::Shoot1, 2), (DieFace::Shoot2, 1)]),
-        };
+        let combo1 = DiceCombo::new(
+            HashMap::from([(DieFace::Gatling, 1), (DieFace::Arrow, 1), (DieFace::Beer, 1)]),
+            vec![]
+        );
+        let combo2 = DiceCombo::new(
+            HashMap::from([(DieFace::Gatling, 3), (DieFace::Shoot1, 2), (DieFace::Shoot2, 1)]),
+            vec![]
+        );
 
-        let result1 = DiceRollResult::from(HashMap::from([
+        let result1 = DiceRollResult::from(BTreeMap::from([
             (DieFace::Arrow, 3),
             (DieFace::Beer, 1),
             (DieFace::Gatling, 2),
         ]));
-        let result2 = DiceRollResult::from(HashMap::from([
+        let result2 = DiceRollResult::from(BTreeMap::from([
             (DieFace::Gatling, 1),
             (DieFace::Shoot1, 3),
             (DieFace::Shoot2, 2),
         ]));
-        let result3 = DiceRollResult::from(HashMap::from([
+        let result3 = DiceRollResult::from(BTreeMap::from([
             (DieFace::Gatling, 3),
             (DieFace::Shoot1, 2),
             (DieFace::Shoot2, 1),

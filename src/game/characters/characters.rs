@@ -1,5 +1,4 @@
 use crate::game::dice::dice_roller::DiceRollResult;
-use crate::game::dice::die_face::DieFace;
 use crate::game::{characters::base_character::CharacterData, damage_type::DamageType};
 
 use super::character::PlayableCharacter;
@@ -31,6 +30,10 @@ impl PlayableCharacter for SuzieLafette {
 
     fn activate_arrows(&mut self) {
         self.base_character.activate_arrows();
+    }
+
+    fn discard_all_arrows(&mut self) {
+        self.base_character.reset_arrows();
     }
 
     fn is_alive(&self) -> bool {

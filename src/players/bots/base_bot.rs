@@ -19,8 +19,8 @@ impl<'a> Actor<'a> for BaseBot {
     }
 
     fn choose_target(
-        &mut self,
-        targets: &Vec<&'a Box<dyn PlayableCharacter>>,
+        &self,
+        targets: &'a Vec<&'a Box<dyn PlayableCharacter>>,
         _action_type: &ActionType,
     ) -> &'a Box<dyn PlayableCharacter> {
         targets.get(0).unwrap()

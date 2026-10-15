@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, HashMap};
+use std::collections::BTreeMap;
 
 use log::{error, trace};
 
@@ -7,8 +7,11 @@ use super::die_face::DieFace;
 use super::die_state::DieState;
 use crate::game::action::{DiceLockUpdate, LockUnlock};
 use crate::game::dice::chooser::Chooser;
+use crate::game::dice::die_face::DieFace::Beer;
 
 pub(crate) struct DiceRoller {
+    // TODO: it's hard, but this can be a hashmap for its entire duration, making
+    // space complexity go from O(n dice) to O(1)
     dice: Vec<StatedDie>,
 }
 
@@ -60,6 +63,8 @@ impl DiceRoller {
 
     /* performs a full lock status update */
     pub(crate) fn update_dice_locks(&mut self, lock_updates: DiceLockUpdate) -> Vec<Result<usize, usize>> {
+        trace!("🔒 updating dice locks: {:?}", lock_updates);
+
         lock_updates
             .into_iter()
             .map(|lock_update| {
@@ -76,28 +81,6 @@ impl DiceRoller {
             .collect()
     }
 
-    /*
-    /* locks a certain amount of faces for a die */
-    pub(crate) fn lock_dice_amount(&mut self, face: DieFace, amount: usize) -> Result<usize, usize> {
-        self.lock_unlock_amount(face, Some(amount), true)
-    }
-
-    /* unlocks a certain amount of faces for a die */
-    pub(crate) fn unlock_dice_amount(&mut self, face: DieFace, amount: usize) -> Result<usize, usize> {
-        self.lock_unlock_amount(face, Some(amount), false)
-    }
-
-    /* locks all dice with a given face */
-    pub(crate) fn lock_dice(&mut self, face: DieFace) -> Result<usize, usize> {
-        self.lock_unlock_amount(face, None, true)
-    }
-
-    /* unlocks all dice with a given face */
-    pub(crate) fn unlock_dice(&mut self, face: DieFace) -> Result<usize, usize> {
-        self.lock_unlock_amount(face, None, false)
-    }
-    */
-
     fn lock_unlock_amount(&mut self, face: DieFace, amount: Option<u16>, lock: bool) -> Result<usize, usize> {
         let mut matching_dice: Vec<&mut StatedDie> = self.get_matching_dice_mut(face, lock);
         let actual_amount = amount.unwrap_or(matching_dice.len() as u16);
@@ -107,15 +90,13 @@ impl DiceRoller {
                 if let Some(ref mut state) = die.state {
                     state.set_locked_by_player(lock);
                 } else {
-                    panic!("Unexpected: die does not have a state while trying to update its lock status");
+                    error!(
+                        "Die does not have a state while trying to update its lock status, I fucked up, have a beer"
+                    );
+                    die.state = Some(DieState::new(Beer));
+                    die.state.unwrap().set_locked_by_player(lock);
                 }
             });
-
-            // println!("matching_dice after lock/unlock: {:?}", cln.iter().map(|die| die.state).collect::<Vec<Option<DieState>>>());
-            // println!(
-            //     "dice after lock/unlock: {:?}",
-            //     self.dice.iter().map(|die| die.state).collect::<Vec<Option<DieState>>>()
-            // );
 
             Ok(actual_amount as usize)
         } else {
@@ -123,6 +104,7 @@ impl DiceRoller {
         }
     }
 
+    // returns the dice with the given face and player lock state
     fn get_matching_dice_mut(&mut self, face: DieFace, lock: bool) -> Vec<&mut StatedDie> {
         self.dice
             .iter_mut()

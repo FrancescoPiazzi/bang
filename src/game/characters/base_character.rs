@@ -48,6 +48,10 @@ impl CharacterData {
         self.arrows = 0;
     }
 
+    pub(crate) fn reset_arrows(&mut self) {
+        self.arrows = 0;
+    }
+
     pub(crate) fn is_alive(&self) -> bool {
         self.alive
     }

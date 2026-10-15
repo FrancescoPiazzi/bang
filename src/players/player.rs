@@ -8,7 +8,11 @@ pub(crate) struct Player<'a> {
     pub(crate) actor: Box<dyn Actor<'a>>,
 }
 
-impl<'a> Player<'_> {
+impl<'a> Player<'a> {
+    pub(crate) fn new(role: Role, character: Box<dyn PlayableCharacter>, actor: Box<dyn Actor<'a>>) -> Player<'a>{
+        Player { role: role, character: character, actor: actor }
+    }
+
     pub(crate) fn set_role(&mut self, role: Role) {
         self.role = role;
     }
@@ -23,5 +27,17 @@ impl<'a> Player<'_> {
 
     pub(crate) fn get_character(&self) -> &Box<dyn PlayableCharacter> {
         &self.character
+    }
+
+    pub(crate) fn get_character_mut(&mut self) -> &mut Box<dyn PlayableCharacter> {
+        &mut self.character
+    }
+
+    pub(crate) fn get_actor(&'a self) -> &Box<dyn Actor> {
+        &self.actor
+    }
+
+    pub(crate) fn get_actor_mut(&'a mut self) -> &Box<dyn Actor> {
+        &mut self.actor
     }
 }

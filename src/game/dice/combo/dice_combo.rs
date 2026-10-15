@@ -2,16 +2,19 @@ use std::collections::HashMap;
 
 use super::super::dice_roller::DiceRollResult;
 use super::super::die_face::DieFace;
-use crate::game::action::NonReferencingInteraction;
+use crate::game::action::Action;
 
-pub(crate) struct DiceCombo{
-    requisite: HashMap<DieFace, usize>, 
-    actions: Vec<NonReferencingInteraction>
+pub(crate) struct DiceCombo {
+    requisite: HashMap<DieFace, usize>,
+    pub(crate) actions: Vec<Action>,
 }
 
-impl DiceCombo{
-    pub(crate) fn new(hash_map: HashMap<DieFace, usize>, actions: Vec<NonReferencingInteraction>) -> DiceCombo {
-        DiceCombo { requisite: hash_map, actions: actions}
+impl DiceCombo {
+    pub(crate) fn new(hash_map: HashMap<DieFace, usize>, actions: Vec<Action>) -> DiceCombo {
+        DiceCombo {
+            requisite: hash_map,
+            actions: actions,
+        }
     }
 
     pub(crate) fn is_triggered(&self, result: &DiceRollResult) -> bool {
@@ -31,11 +34,11 @@ mod tests {
     fn test_generic_combo() {
         let combo1 = DiceCombo::new(
             HashMap::from([(DieFace::Gatling, 1), (DieFace::Arrow, 1), (DieFace::Beer, 1)]),
-            vec![]
+            vec![],
         );
         let combo2 = DiceCombo::new(
             HashMap::from([(DieFace::Gatling, 3), (DieFace::Shoot1, 2), (DieFace::Shoot2, 1)]),
-            vec![]
+            vec![],
         );
 
         let result1 = DiceRollResult::from(BTreeMap::from([

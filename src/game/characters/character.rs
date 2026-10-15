@@ -1,10 +1,8 @@
-use std::collections::HashMap;
-
 use super::characters::*;
 
 use crate::game::action::ActionRange;
 use crate::game::action::ActionType;
-use crate::game::action::NonReferencingInteraction;
+use crate::game::action::Action;
 use crate::game::characters::base_character::CharacterData;
 use crate::game::damage_type::DamageType;
 use crate::game::dice::combo::dice_combo::DiceCombo;
@@ -26,8 +24,8 @@ pub(crate) trait PlayableCharacter {
     // TODO: some of these methods don't need self at all, figure out if it makes sense to remove it
     // and if yes, how, since you can't keep a method that doesn't take &self in an #[enum_dispatch] trait
 
-    // allows characters to throw different dices, no character in the original rules has this ability
-    // however, it makes it easy to implements some characters, while also keeping room open for characters
+    // allows characters to throw different dices, no character in the original rules has this ability,however, 
+    // it makes it easy to implements some characters, while also keeping room open for characters
     // to naturally throw different dices
     fn get_dice_faces(&self) -> Vec<DieFace> {
         Archetype::get_standard_dice_faces()
@@ -56,6 +54,8 @@ pub(crate) trait PlayableCharacter {
     fn give_arrows(&mut self, amount: u16);
 
     fn activate_arrows(&mut self);
+
+    fn discard_all_arrows(&mut self);
 
     fn is_alive(&self) -> bool;
 }
@@ -89,17 +89,21 @@ impl<'ch> Archetype {
         vec![
             DiceCombo::new(
                 [(DieFace::Dynamite, 3)].into_iter().collect(),
-                vec![
-                    NonReferencingInteraction::new(ActionType::Damage(DamageType::Dynamite, 1), ActionRange::Myself)
-                ]
-            ), 
+                vec![Action::new(
+                    ActionType::Damage(DamageType::Dynamite, 1),
+                    ActionRange::Myself,
+                )],
+            ),
             DiceCombo::new(
                 [(DieFace::Gatling, 3)].into_iter().collect(),
                 vec![
-                    NonReferencingInteraction::new(ActionType::DiscardAllArrows, ActionRange::Myself),
-                    NonReferencingInteraction::new(ActionType::Damage(DamageType::Gatling, 1), ActionRange::AnyoneButSelf)
-                ]
-            )
+                    Action::new(ActionType::DiscardAllArrows, ActionRange::Myself),
+                    Action::new(
+                        ActionType::Damage(DamageType::Gatling, 1),
+                        ActionRange::AnyoneButSelf,
+                    ),
+                ],
+            ),
         ]
     }
 }

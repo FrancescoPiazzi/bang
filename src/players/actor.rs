@@ -18,11 +18,13 @@ pub(crate) trait Actor<'a> {
     // allows the bot to choose the target for a specific action, mainly following dice throw
     // but may also come from abilities, note that if more actions are required (i.e. 3 shots and 2 beers are rolled)
     // this method is called once per action, in the order in which they must be resolved
-    // TODO: add the last dice throw result so bots can make wiser targeting decisions without having to store
+    // TODO: add the last dice throw result / faces to compute left
+    // so bots can make wiser targeting decisions without having to store
     // the last dice throw result themselves
+    // TODO: review signature: the lifetime in &'a Vec is a bit of a lazy implementation: the data in the vector may outlive the vector itself.
     fn choose_target(
-        &mut self,
-        targets: &Vec<&'a Box<dyn PlayableCharacter>>,
+        &self,
+        targets: &'a Vec<&'a Box<dyn PlayableCharacter>>,
         action_type: &ActionType,
     ) -> &'a Box<dyn PlayableCharacter>;
 }

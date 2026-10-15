@@ -5,13 +5,25 @@ use std::io::Read;
 use std::path::Path;
 
 use crate::game::settings::*;
+use crate::game::{dice::chooser::RandomChooser, match_controller::MatchController};
 
 use log::{error, trace};
-use serde_json::Value;
 
-struct GameController {}
+struct GameController {
+    dice_chooser: RandomChooser,
+}
 
 impl GameController {
+    pub(crate) fn run_match(&mut self) {
+        let settings = Self::load_settings_from_file(None);
+
+        // let match_controller = MatchController::new(
+        //     settings,
+        //     self.dice_chooser,
+        //
+        // );
+    }
+
     pub(crate) fn load_settings_from_file(name: Option<String>) -> Settings {
         if let Some(name_inner) = name {
             // not gonna bother with combining paths with PathBuf
@@ -20,28 +32,28 @@ impl GameController {
             let mut file = match File::open(&Path::new(&path_str)) {
                 Ok(file) => file,
                 Err(why) => {
-                    error!("Io error when loading settings: {}, loading defaults instead", why);
+                    error!("io error when loading settings: {}, loading defaults instead", why);
                     return Settings::default();
                 }
             };
 
             let mut s = String::new();
             if let Err(why) = file.read_to_string(&mut s) {
-                error!("Failed to open file, loading defaults instead");
+                error!("failed to open file, loading defaults instead");
                 return Settings::default();
             }
 
             let settings: Settings = match serde_json::from_str(&s) {
                 Ok(settings) => settings,
                 Err(error) => {
-                    error!("Incorrect format when loading settings, loading defaults instead");
+                    error!("incorrect format when loading settings, loading defaults instead");
                     return Settings::default();
                 }
             };
 
             settings
         } else {
-            trace!("No settings file specified, loading defaults");
+            trace!("no settings file specified, loading defaults");
             Settings::default()
         }
     }

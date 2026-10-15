@@ -4,7 +4,7 @@ use crate::game::dice::dice_roller::DiceRollResult;
 
 // represents a person or bot playing the game.
 // an actor defines the decision making process of a player during a match.
-pub(crate) trait Actor<'a> {
+pub(crate) trait Actor {
     // update sent by the controller, does not require an answer
     fn receive_match_state(&mut self, me: &Box<dyn PlayableCharacter>, everyone: &Vec<&Box<dyn PlayableCharacter>>);
 
@@ -21,10 +21,5 @@ pub(crate) trait Actor<'a> {
     // TODO: add the last dice throw result / faces to compute left
     // so bots can make wiser targeting decisions without having to store
     // the last dice throw result themselves
-    // TODO: review signature: the lifetime in &'a Vec is a bit of a lazy implementation: the data in the vector may outlive the vector itself.
-    fn choose_target(
-        &self,
-        targets: &'a Vec<&'a Box<dyn PlayableCharacter>>,
-        action_type: &ActionType,
-    ) -> &'a Box<dyn PlayableCharacter>;
+    fn choose_target(&self, targets: &Vec<&Box<dyn PlayableCharacter>>, action_type: &ActionType) -> usize;
 }

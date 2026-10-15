@@ -9,8 +9,6 @@ use log::{debug, error, info, trace, warn};
 fn main() {
     colog::default_builder().filter_level(log::LevelFilter::Trace).init();
 
-    print!("{}", buffer);
-
     error!("🔥🔥🔥 error");
     warn!("warn");
     info!("info");

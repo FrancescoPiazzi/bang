@@ -3,31 +3,26 @@
 use super::role::Role;
 use crate::{
     game::{
-        action::{
-            ActionRange,
-            ActionType,
-            Action,
-        },
+        action::{Action, ActionRange, ActionType},
         characters::character::{Archetype, CharacterType, PlayableCharacter},
         damage_type::DamageType,
         dice::{chooser::RandomChooser, dice_roller::DiceRoller, die_face::DieFace},
         settings::Settings,
         shuffler::Shuffler,
     },
-    
     players::{actor::Actor, player::Player},
 };
 
 use log::{error, info};
 
-pub(crate) struct MatchController<'a> {
+pub(crate) struct MatchController {
     settings: Settings,
     dice_chooser: RandomChooser,
-    players: Vec<Player<'a>>,
+    players: Vec<Player>,
     active_turn_index: usize,
 }
 
-impl<'a> MatchController<'a> {
+impl MatchController {
     pub(crate) fn new(settings: Settings, actors: Vec<Box<dyn Actor>>, shuffler: Box<dyn Shuffler>) -> MatchController {
         let n_players = actors.len();
         let roles = Role::roles_by_n_players(n_players, &shuffler);
@@ -91,7 +86,7 @@ impl<'a> MatchController<'a> {
     }
 
     // returns the possible target options for the currently active player
-    pub(crate) fn get_target_options(&'a self, range: ActionRange) -> Vec<&'a Box<dyn PlayableCharacter>> {
+    pub(crate) fn get_target_options(&self, range: ActionRange) -> Vec<&Box<dyn PlayableCharacter>> {
         ActionRange::get_targets(&self.players, self.active_turn_index, range)
             .iter_mut()
             .map(|player| player.get_character())
@@ -138,8 +133,8 @@ impl<'a> MatchController<'a> {
         // handle eventual rerolls
         let mut rerolls_left = self.get_current_character().get_max_rerolls(self.settings.max_rerolls);
         while rerolls_left > 0 {
-            if self.get_current_actor().throw_dice_again(&dice_roll) {
-                dice_roller.update_dice_locks(self.get_current_actor().get_dice_locks(&dice_roll));
+            if self.get_current_actor_mut().throw_dice_again(&dice_roll) {
+                dice_roller.update_dice_locks(self.get_current_actor_mut().get_dice_locks(&dice_roll));
                 dice_roll = dice_roller.throw(&mut self.dice_chooser);
 
                 // handle combos
@@ -163,38 +158,38 @@ impl<'a> MatchController<'a> {
         for die_face in dice_roll.into_iter() {
             match die_face {
                 DieFace::Shoot1 => {
-                    self.resolve_action(
-                        Action::new(ActionType::Damage(DamageType::Bullet, 1), ActionRange::ExactDistance(1))
-                    );
+                    self.resolve_action(Action::new(
+                        ActionType::Damage(DamageType::Bullet, 1),
+                        ActionRange::ExactDistance(1),
+                    ));
                 }
                 DieFace::Shoot2 => {
-                    self.resolve_action(
-                        Action::new(ActionType::Damage(DamageType::Bullet, 1), ActionRange::ExactDistance(2))
-                    );
+                    self.resolve_action(Action::new(
+                        ActionType::Damage(DamageType::Bullet, 1),
+                        ActionRange::ExactDistance(2),
+                    ));
                 }
                 DieFace::Beer => {
-                    self.resolve_action(
-                        Action::new(ActionType::Heal(1), ActionRange::Anyone)
-                    );
+                    self.resolve_action(Action::new(ActionType::Heal(1), ActionRange::Anyone));
                 }
                 DieFace::Arrow => {
-                    self.resolve_action(
-                        Action::new(ActionType::GiveArrows(1), ActionRange::Myself)
-                    );
+                    self.resolve_action(Action::new(ActionType::GiveArrows(1), ActionRange::Myself));
                 }
                 DieFace::Dynamite => {}
                 DieFace::Gatling => {}
                 DieFace::NonBlockingDynamite => {}
                 DieFace::HealingGatling => {}
                 DieFace::Shoot1or2 => {
-                    self.resolve_action(
-                        Action::new(ActionType::Damage(DamageType::Bullet, 1), ActionRange::DistanceRange(1, 2))
-                    );
+                    self.resolve_action(Action::new(
+                        ActionType::Damage(DamageType::Bullet, 1),
+                        ActionRange::DistanceRange(1, 2),
+                    ));
                 }
                 DieFace::Shoot2or3 => {
-                    self.resolve_action(
-                        Action::new(ActionType::Damage(DamageType::Bullet, 1), ActionRange::DistanceRange(1, 2))
-                    );
+                    self.resolve_action(Action::new(
+                        ActionType::Damage(DamageType::Bullet, 1),
+                        ActionRange::DistanceRange(1, 2),
+                    ));
                 }
             };
 
@@ -211,15 +206,15 @@ impl<'a> MatchController<'a> {
         }
     }
 
-    fn get_current_character(&'a self) -> &Box<dyn PlayableCharacter>{
+    fn get_current_character(&self) -> &Box<dyn PlayableCharacter> {
         &self.get_current_player().get_character()
     }
 
-    fn get_current_actor(&'a self) -> &Box<dyn Actor>{
+    fn get_current_actor(&self) -> &Box<dyn Actor> {
         &self.get_current_player().get_actor()
     }
 
-    fn get_current_player(&self) -> &Player<'a> {
+    fn get_current_player(&self) -> &Player {
         self.players.get(self.active_turn_index).unwrap_or_else(|| {
             error!(
                 "Invalid active turn index (index: {}, players: {}), falling back to index 0",
@@ -230,36 +225,54 @@ impl<'a> MatchController<'a> {
         })
     }
 
-    fn resolve_action(
-        &'a mut self,
-        action: Action
-    ) {
-        let current_actor = self.get_current_actor();
-        let current_character = &mut self.get_current_character();
+    fn get_current_character_mut(&mut self) -> &mut Box<dyn PlayableCharacter> {
+        self.get_current_player_mut().get_character_mut()
+    }
 
-        let options = self.get_target_options(action.action_range);
+    fn get_current_actor_mut(&mut self) -> &mut Box<dyn Actor> {
+        self.get_current_player_mut().get_actor_mut()
+    }
 
+    fn get_current_player_mut(&mut self) -> &mut Player {
+        if self.active_turn_index < self.players.len() {
+            &mut self.players[self.active_turn_index]
+        } else {
+            error!(
+                "Invalid active turn index (index: {}, players: {}), falling back to index 0",
+                self.active_turn_index,
+                self.players.len()
+            );
+            &mut self.players[0]
+        }
+    }
+
+    fn resolve_action(&mut self, action: Action) {
         match action.action_type {
             ActionType::Damage(damage_type, amount) => {
-                let target = current_actor.choose_target(&options, &ActionType::Damage(DamageType::Bullet, amount));
+                let options = self.get_target_options(action.action_range);
+                let target_idx = self
+                    .get_current_actor()
+                    .choose_target(&options, &ActionType::Damage(DamageType::Bullet, amount));
+                // TODO: validate index
+                let target = self.players[target_idx].get_character_mut();
                 target.take_damage(amount, damage_type)
             }
-            
+
             ActionType::Heal(amount) => {
-                todo!();
-                current_actor
-                    .choose_target(
-                        &mut self.get_target_options(ActionRange::Anyone), 
-                        &ActionType::Heal(amount)
-                    )
-                    .heal(amount)
+                let options = self.get_target_options(action.action_range);
+                let target_idx = self
+                    .get_current_actor()
+                    .choose_target(&options, &ActionType::Heal(amount));
+                // TODO: validate index
+                let target = self.players[target_idx].get_character_mut();
+                target.heal(amount)
             }
-            
+
             ActionType::GiveArrows(amount) => {
-                current_character.give_arrows(amount);
+                self.get_current_character_mut().give_arrows(amount);
             }
             ActionType::DiscardAllArrows => {
-                current_character.discard_all_arrows();
+                self.get_current_character_mut().discard_all_arrows();
             }
         }
     }
@@ -353,7 +366,7 @@ mod tests {
         assert_eq!(ctr.players[ctr.active_turn_index].role, Role::SHERIFF);
     }
 
-    fn generate_base_bot_actors<'a>(n: usize) -> Vec<Box<dyn Actor<'a>>> {
+    fn generate_base_bot_actors<'a>(n: usize) -> Vec<Box<dyn Actor>> {
         let actors_template: Vec<BaseBot> = vec![BaseBot {}; n];
         actors_template
             .iter()

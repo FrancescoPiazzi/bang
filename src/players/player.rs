@@ -2,15 +2,19 @@ use crate::game::characters::character::PlayableCharacter;
 use crate::game::role::Role;
 use crate::players::actor::Actor;
 
-pub(crate) struct Player<'a> {
+pub(crate) struct Player {
     pub(crate) role: Role,
     pub(crate) character: Box<dyn PlayableCharacter>,
-    pub(crate) actor: Box<dyn Actor<'a>>,
+    pub(crate) actor: Box<dyn Actor>,
 }
 
-impl<'a> Player<'a> {
-    pub(crate) fn new(role: Role, character: Box<dyn PlayableCharacter>, actor: Box<dyn Actor<'a>>) -> Player<'a>{
-        Player { role: role, character: character, actor: actor }
+impl Player {
+    pub(crate) fn new(role: Role, character: Box<dyn PlayableCharacter>, actor: Box<dyn Actor>) -> Player {
+        Player {
+            role: role,
+            character: character,
+            actor: actor,
+        }
     }
 
     pub(crate) fn set_role(&mut self, role: Role) {
@@ -33,11 +37,11 @@ impl<'a> Player<'a> {
         &mut self.character
     }
 
-    pub(crate) fn get_actor(&'a self) -> &Box<dyn Actor> {
+    pub(crate) fn get_actor(&self) -> &Box<dyn Actor> {
         &self.actor
     }
 
-    pub(crate) fn get_actor_mut(&'a mut self) -> &Box<dyn Actor> {
+    pub(crate) fn get_actor_mut(&mut self) -> &mut Box<dyn Actor> {
         &mut self.actor
     }
 }

@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use crate::game::{damage_type::DamageType, dice::die_face::DieFace, characters::character::PlayableCharacter};
+use crate::game::{characters::character::PlayableCharacter, damage_type::DamageType, dice::die_face::DieFace};
 
 // an action a player takes that doesn't have a specific target,
 // since this doesn't need to hold a reference to a character,
@@ -62,16 +62,13 @@ pub(crate) enum LockUnlock {
 }
 
 impl ActionRange {
-
     pub(crate) fn get_targets<'a, T>(
         characters: &'a Vec<T>,
         starting_point: usize,
         action_range: ActionRange,
     ) -> Vec<&'a T> {
         match action_range {
-            ActionRange::Myself => {
-                Vec::from([&characters[starting_point]])
-            }
+            ActionRange::Myself => Vec::from([&characters[starting_point]]),
 
             ActionRange::ExactDistance(distance_inner) => {
                 // an exact distance range will always have at most 2 targets
@@ -91,7 +88,10 @@ impl ActionRange {
                     max = characters.len();
                 }
 
-                (min..=max).map(|distance| Self::get_targets(characters, starting_point, ActionRange::ExactDistance(distance))).flatten().collect()
+                (min..=max)
+                    .map(|distance| Self::get_targets(characters, starting_point, ActionRange::ExactDistance(distance)))
+                    .flatten()
+                    .collect()
             }
 
             ActionRange::AnyoneButSelf => characters
@@ -113,13 +113,6 @@ impl ActionRange {
         match action_range {
             ActionRange::Myself => HashSet::from([starting_point]),
 
-            //ActionRange::ExactDistance(distance_inner) => {
-            //    // an exact distance range will always have at most 2 targets
-            //    let ln = len as i64;
-            //    let first: i64 = (starting_point as i64 - distance_inner as i64).rem_euclid(ln);
-            //    let second: i64 = (starting_point as i64 + distance_inner as i64) % ln;
-            //    HashSet::from([first as usize, second as usize])
-            //}
             ActionRange::ExactDistance(distance) => Self::get_target_indexes(
                 characters,
                 starting_point,
@@ -132,8 +125,8 @@ impl ActionRange {
                 let mut remaining_left = max - min + 1;
                 let mut remaining_right = max - min + 1;
 
-                let mut pointer_left = Self::first_alive_index(characters, starting_point - 1, false);
-                let mut pointer_right = Self::first_alive_index(characters, starting_point + 1, true);
+                let mut pointer_left = Self::first_alive_index(characters, starting_point as i64 - 1, false);
+                let mut pointer_right = Self::first_alive_index(characters, starting_point as i64 + 1, true);
 
                 let mut alive_counted_left: usize = 1;
                 let mut alive_counted_right: usize = 1;
@@ -148,17 +141,16 @@ impl ActionRange {
                     // }
 
                     if (min..=max).contains(&alive_counted_left) {
-                        res.insert(pointer_left);
+                        res.insert(pointer_left as usize);
+                        remaining_left -= 1;
                     }
                     if (min..=max).contains(&alive_counted_right) {
-                        res.insert(pointer_right);
+                        res.insert(pointer_right as usize);
+                        remaining_right -= 1;
                     }
 
                     alive_counted_left += 1;
                     alive_counted_right += 1;
-
-                    remaining_left -= 1;
-                    remaining_right -= 1;
 
                     pointer_left = Self::first_alive_index(characters, pointer_left - 1, false);
                     pointer_right = Self::first_alive_index(characters, pointer_right + 1, true);
@@ -176,23 +168,24 @@ impl ActionRange {
 
             ActionRange::Anyone => {
                 // quick trick: set starting_point to an invalid index so all the valid ones will be included
-                Self::get_target_indexes(characters, characters.len(), action_range)
+                Self::get_target_indexes(characters, characters.len(), ActionRange::AnyoneButSelf)
             }
         }
     }
 
     // don't call this with the current character or it will just return it every time since it's an alive one
     // TODO: move this in match_controller
-    fn first_alive_index(characters: &Vec<Box<dyn PlayableCharacter>>, start: usize, direction: bool) -> usize {
+    fn first_alive_index(characters: &Vec<Box<dyn PlayableCharacter>>, start: i64, direction: bool) -> i64 {
         let ln = characters.len();
-        let mut pointer: i64 = Self::adjust_pointer(ln, start as i64);
+        let mut pointer: i64 = Self::adjust_pointer(ln, start);
 
-        while !characters[pointer as usize].is_alive() {  // TODO: risky to index with [] in such a hard piece of code (hard for my brain anyway)
+        while !characters[pointer as usize].is_alive() {
+            // TODO: risky to index with [] in such a hard piece of code (hard for my brain anyway)
             pointer += if direction { 1 } else { -1 };
             pointer = Self::adjust_pointer(ln, pointer);
         }
 
-        pointer as usize
+        pointer
     }
 
     fn adjust_pointer(len: usize, mut pointer: i64) -> i64 {
@@ -239,72 +232,52 @@ impl IntoIterator for DiceLockUpdate {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use std::collections::HashSet;
 
     use crate::game::action::ActionRange;
+    use crate::game::characters::base_character::CharacterData;
     use crate::game::characters::character::PlayableCharacter;
     use crate::game::characters::characters::SuzieLafette;
-    use crate::game::characters::base_character::CharacterData;
 
     static N_PLAYERS: usize = 10;
 
     fn get_test_characters() -> [Box<dyn PlayableCharacter>; N_PLAYERS] {
-        std::array::from_fn(|_|
+        std::array::from_fn(|_| {
             Box::new(SuzieLafette {
                 base_character: CharacterData::new(8),
             }) as Box<dyn PlayableCharacter>
-        )
+        })
     }
-
 
     #[test]
     fn test_action_range_all() {
-        let targets = ActionRange::get_target_indexes(
-            &Vec::from(get_test_characters()), 
-            0, 
-            ActionRange::Anyone
-        );
-        assert_eq!(targets, HashSet::from([0, 1, 2, 3, 4, 5, 6, 7, 8 , 9]));
+        let targets = ActionRange::get_target_indexes(&Vec::from(get_test_characters()), 0, ActionRange::Anyone);
+        assert_eq!(targets, HashSet::from([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]));
     }
-
 
     #[test]
     fn test_action_range_all_but_self() {
-        let targets = ActionRange::get_target_indexes(
-            &Vec::from(get_test_characters()), 
-            1, 
-            ActionRange::AnyoneButSelf
-        );
-        assert_eq!(targets, HashSet::from([0, 2, 3, 4, 5, 6, 7, 8 , 9]));
+        let targets = ActionRange::get_target_indexes(&Vec::from(get_test_characters()), 1, ActionRange::AnyoneButSelf);
+        assert_eq!(targets, HashSet::from([0, 2, 3, 4, 5, 6, 7, 8, 9]));
     }
 
     #[test]
     fn test_action_range_distance_exact() {
-        let targets = ActionRange::get_target_indexes(
-            &Vec::from(get_test_characters()), 
-            2, 
-            ActionRange::ExactDistance(1)
-        );
+        let targets =
+            ActionRange::get_target_indexes(&Vec::from(get_test_characters()), 2, ActionRange::ExactDistance(1));
         assert_eq!(targets, HashSet::from([1, 3]));
 
-        let targets= ActionRange::get_target_indexes(
-            &Vec::from(get_test_characters()), 
-            0, 
-            ActionRange::ExactDistance(2)
-        );
+        let targets =
+            ActionRange::get_target_indexes(&Vec::from(get_test_characters()), 0, ActionRange::ExactDistance(2));
         assert_eq!(targets, HashSet::from([2, 8]));
     }
 
     #[test]
     fn test_action_range_distance_range() {
-        let targets = ActionRange::get_target_indexes(
-            &Vec::from(get_test_characters()), 
-            0, 
-            ActionRange::DistanceRange(1, 3)
-        );
+        let targets =
+            ActionRange::get_target_indexes(&Vec::from(get_test_characters()), 0, ActionRange::DistanceRange(1, 3));
 
         assert_eq!(targets, HashSet::from([7, 8, 9, 1, 2, 3]));
     }

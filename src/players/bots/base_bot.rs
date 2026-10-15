@@ -7,7 +7,7 @@ use crate::players::actor::Actor;
 #[derive(Clone)]
 pub(crate) struct BaseBot {}
 
-impl<'a> Actor<'a> for BaseBot {
+impl Actor for BaseBot {
     fn receive_match_state(&mut self, _me: &Box<dyn PlayableCharacter>, _everyone: &Vec<&Box<dyn PlayableCharacter>>) {}
 
     fn throw_dice_again(&mut self, _dice_roll: &DiceRollResult) -> bool {
@@ -18,11 +18,7 @@ impl<'a> Actor<'a> for BaseBot {
         DiceLockUpdate::default()
     }
 
-    fn choose_target(
-        &self,
-        targets: &'a Vec<&'a Box<dyn PlayableCharacter>>,
-        _action_type: &ActionType,
-    ) -> &'a Box<dyn PlayableCharacter> {
-        targets.get(0).unwrap()
+    fn choose_target(&self, targets: &Vec<&Box<dyn PlayableCharacter>>, _action_type: &ActionType) -> usize {
+        0
     }
 }

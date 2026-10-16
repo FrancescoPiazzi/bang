@@ -38,7 +38,7 @@ impl DiceRoller {
                 // die has a state -> it has already been thrown
                 if state.is_throwable() {
                     if let Some(roll_result) = dice_values_chooser.choose(&die.faces) {
-                        state.set_face(roll_result.clone());
+                        state.set_face(roll_result);
                     } else {
                         error!("Dice value iterator did not yeld a value")
                     }
@@ -46,7 +46,7 @@ impl DiceRoller {
             } else {
                 // stateless die, never thrown, initialize it
                 if let Some(roll_result) = dice_values_chooser.choose(&die.faces) {
-                    die.state = Some(DieState::new(roll_result.clone()));
+                    die.state = Some(DieState::new(roll_result));
                 } else {
                     error!("Dice value iterator did not yeld a value")
                 }
@@ -58,7 +58,8 @@ impl DiceRoller {
         }
 
         trace!("🎲 dice thrown, result is: {:?}", result);
-        return result;
+        
+        result
     }
 
     /* performs a full lock status update */
@@ -184,7 +185,7 @@ mod tests {
     }
 
     impl Chooser<DieFace> for LoopingChooser {
-        fn choose(&self, _: &Vec<DieFace>) -> Option<DieFace> {
+        fn choose(&self, _: &[DieFace]) -> Option<DieFace> {
             let current_count = self.count.get();
             let nxt = &self.looped_values[self.count.get()];
 
@@ -202,7 +203,6 @@ mod tests {
 
     #[test]
     fn test_dice_throw() {
-        // TODO probably there's an easier way to do this, this was converted from a [HashSet<DieFace>; N_DICE_PER_THROW]
         let dice: [Vec<DieFace>; N_DICE_PER_THROW] = array::from_fn(|_| Vec::from(STANDARD_DIE_FACES).clone());
         let mut dice_roller = DiceRoller::new(dice.into());
 

@@ -15,11 +15,17 @@ pub(crate) trait Actor {
     // allows the actor to lock/ulock dice given a result for the next throw
     fn get_dice_locks(&mut self, dice_roll: &DiceRollResult) -> DiceLockUpdate;
 
-    // allows the bot to choose the target for a specific action, mainly following dice throw
+    // allows the actor to choose the target for a specific action, mainly following dice throw
     // but may also come from abilities, note that if more actions are required (i.e. 3 shots and 2 beers are rolled)
     // this method is called once per action, in the order in which they must be resolved
     // TODO: add the last dice throw result / faces to compute left
     // so bots can make wiser targeting decisions without having to store
     // the last dice throw result themselves
     fn choose_target(&self, targets: &Vec<&Box<dyn PlayableCharacter>>, action_type: &ActionType) -> usize;
+
+    // receives a reroll decision made by another actor, actors can use this to estimate who has which role
+    fn recieve_reroll_decision(&mut self);
+
+    // receives an action decision made by another actor, actors can use this to estimate who has which role
+    fn recieve_action_decision(&mut self);
 }

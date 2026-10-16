@@ -18,7 +18,11 @@ impl Actor for BaseBot {
         DiceLockUpdate::default()
     }
 
-    fn choose_target(&self, targets: &Vec<&Box<dyn PlayableCharacter>>, _action_type: &ActionType) -> usize {
+    fn choose_target(&self, _targets: &Vec<&Box<dyn PlayableCharacter>>, _action_type: &ActionType) -> usize {
         0
     }
+
+    fn recieve_action_decision(&mut self) {}
+
+    fn recieve_reroll_decision(&mut self) {}
 }

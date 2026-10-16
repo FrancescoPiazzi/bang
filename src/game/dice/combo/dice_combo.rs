@@ -20,7 +20,7 @@ impl DiceCombo {
     pub(crate) fn is_triggered(&self, result: &DiceRollResult) -> bool {
         self.requisite
             .iter()
-            .all(|(face_required, count_required)| result.get(&face_required) >= *count_required)
+            .all(|(face_required, count_required)| result.get(face_required) >= *count_required)
     }
 }
 
@@ -57,12 +57,12 @@ mod tests {
             (DieFace::Shoot2, 1),
         ]));
 
-        assert_eq!(combo1.is_triggered(&result1), true);
-        assert_eq!(combo1.is_triggered(&result2), false);
-        assert_eq!(combo1.is_triggered(&result3), false);
+        assert!(combo1.is_triggered(&result1));
+        assert!(!combo1.is_triggered(&result2));
+        assert!(!combo1.is_triggered(&result3));
 
-        assert_eq!(combo2.is_triggered(&result1), false);
-        assert_eq!(combo2.is_triggered(&result2), false);
-        assert_eq!(combo2.is_triggered(&result3), true);
+        assert!(!combo2.is_triggered(&result1));
+        assert!(!combo2.is_triggered(&result2));
+        assert!(combo2.is_triggered(&result3));
     }
 }

@@ -1,5 +1,6 @@
 use std::collections::HashSet;
 
+use crate::game::utils;
 use crate::game::{characters::character::PlayableCharacter, damage_type::DamageType, dice::die_face::DieFace};
 
 // an action a player takes that doesn't have a specific target,
@@ -62,11 +63,11 @@ pub(crate) enum LockUnlock {
 }
 
 impl ActionRange {
-    pub(crate) fn get_targets<'a, T>(
-        characters: &'a Vec<T>,
+    pub(crate) fn get_targets<T>(
+        characters: &Vec<T>,
         starting_point: usize,
         action_range: ActionRange,
-    ) -> Vec<&'a T> {
+    ) -> Vec<&T> {
         match action_range {
             ActionRange::Myself => Vec::from([&characters[starting_point]]),
 
@@ -173,27 +174,15 @@ impl ActionRange {
         }
     }
 
+    // returns the first alive character, starting from the given point, going forwards if direction is true, backwards otherwise
     // don't call this with the current character or it will just return it every time since it's an alive one
-    // TODO: move this in match_controller
-    fn first_alive_index(characters: &Vec<Box<dyn PlayableCharacter>>, start: i64, direction: bool) -> i64 {
+    fn first_alive_index(characters: &[Box<dyn PlayableCharacter>], start: i64, direction: bool) -> i64 {
         let ln = characters.len();
-        let mut pointer: i64 = Self::adjust_pointer(ln, start);
+        let mut pointer: i64 = utils::loop_index(start, ln);
 
         while !characters[pointer as usize].is_alive() {
-            // TODO: risky to index with [] in such a hard piece of code (hard for my brain anyway)
             pointer += if direction { 1 } else { -1 };
-            pointer = Self::adjust_pointer(ln, pointer);
-        }
-
-        pointer
-    }
-
-    fn adjust_pointer(len: usize, mut pointer: i64) -> i64 {
-        if pointer >= len as i64 {
-            pointer = 0;
-        }
-        if pointer < 0 {
-            pointer = len as i64 - 1;
+            pointer = utils::loop_index(pointer, ln);
         }
 
         pointer

@@ -8,7 +8,7 @@ pub(crate) struct SuzieLafette {
 }
 
 impl PlayableCharacter for SuzieLafette {
-    fn handle_dice_roll(&mut self, roll: &DiceRollResult) {}
+    fn handle_dice_roll(&mut self, _: &DiceRollResult) {}
 
     fn take_damage(&mut self, amount: u16, damage_type: DamageType) {
         self.base_character.take_damage(amount, damage_type);
@@ -38,5 +38,9 @@ impl PlayableCharacter for SuzieLafette {
 
     fn is_alive(&self) -> bool {
         self.base_character.is_alive()
+    }
+
+    fn set_alive(&mut self, alive: bool) {
+        self.base_character.set_alive(alive)
     }
 }

@@ -4,8 +4,8 @@ use std::fs::File;
 use std::io::Read;
 use std::path::Path;
 
+use crate::game::dice::chooser::RandomChooser;
 use crate::game::settings::*;
-use crate::game::{dice::chooser::RandomChooser, match_controller::MatchController};
 
 use log::{error, trace};
 
@@ -29,7 +29,7 @@ impl GameController {
             // not gonna bother with combining paths with PathBuf
             let path_str = String::from("settings_profiles/") + &name_inner;
 
-            let mut file = match File::open(&Path::new(&path_str)) {
+            let mut file = match File::open(Path::new(&path_str)) {
                 Ok(file) => file,
                 Err(why) => {
                     error!("io error when loading settings: {}, loading defaults instead", why);
@@ -39,14 +39,14 @@ impl GameController {
 
             let mut s = String::new();
             if let Err(why) = file.read_to_string(&mut s) {
-                error!("failed to open file, loading defaults instead");
+                error!("failed to open file reason: {}, loading defaults instead", why);
                 return Settings::default();
             }
 
             let settings: Settings = match serde_json::from_str(&s) {
                 Ok(settings) => settings,
                 Err(error) => {
-                    error!("incorrect format when loading settings, loading defaults instead");
+                    error!("incorrect format when loading settings: {}, loading defaults instead", error);
                     return Settings::default();
                 }
             };

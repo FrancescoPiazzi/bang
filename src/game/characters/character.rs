@@ -58,6 +58,8 @@ pub(crate) trait PlayableCharacter {
     fn discard_all_arrows(&mut self);
 
     fn is_alive(&self) -> bool;
+
+    fn set_alive(&mut self, alive: bool);
 }
 
 #[enum_dispatch(PlayableCharacter)]
@@ -92,7 +94,9 @@ impl<'ch> Archetype {
                 vec![Action::new(
                     ActionType::Damage(DamageType::Dynamite, 1),
                     ActionRange::Myself,
-                )],
+                )
+                // TODO: if this combo is triggered, dice may not be rethrown
+                ],
             ),
             DiceCombo::new(
                 [(DieFace::Gatling, 3)].into_iter().collect(),

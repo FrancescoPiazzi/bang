@@ -8,3 +8,4 @@ pub mod role;
 pub(crate) mod action;
 mod settings;
 mod shuffler;
+pub(crate) mod utils;

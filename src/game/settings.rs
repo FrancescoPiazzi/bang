@@ -8,6 +8,8 @@ pub(crate) struct Settings {
 
     pub(crate) dice_thrown: usize,
     pub(crate) dice_throw_type: DiceThrowType,
+
+    pub(crate) invalid_action_policy: InvalidActionPolicy,
 }
 
 impl Settings {
@@ -19,6 +21,8 @@ impl Settings {
 
             dice_thrown: 5,
             dice_throw_type: DiceThrowType::AutomaticForBots,
+
+            invalid_action_policy: InvalidActionPolicy::Ignore,
         }
     }
 
@@ -27,6 +31,7 @@ impl Settings {
         max_rerolls: u16,
         dice_thrown: usize,
         dice_throw_type: DiceThrowType,
+        invalid_action_policy: InvalidActionPolicy,
     ) -> Settings {
         Settings {
             n_players: players,
@@ -35,6 +40,8 @@ impl Settings {
 
             dice_thrown: dice_thrown,
             dice_throw_type: dice_throw_type,
+
+            invalid_action_policy: invalid_action_policy,
         }
     }
 }
@@ -48,6 +55,8 @@ impl Default for Settings {
 
             dice_thrown: 5,
             dice_throw_type: DiceThrowType::AutomaticForBots,
+
+            invalid_action_policy: InvalidActionPolicy::Ignore,
         }
     }
 }
@@ -57,4 +66,10 @@ pub(crate) enum DiceThrowType {
     Automatic,
     AutomaticForBots,
     Manual,
+}
+
+#[derive(Deserialize)]
+pub(crate) enum InvalidActionPolicy {
+    Ignore,
+    MarkAsDead,
 }

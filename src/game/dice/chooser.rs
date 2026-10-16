@@ -3,13 +3,13 @@
 // of a given die, effectively rolling the die
 
 pub(crate) trait Chooser<T: Clone> {
-    fn choose(&self, iterator: &Vec<T>) -> Option<T>;
+    fn choose(&self, iterator: &[T]) -> Option<T>;
 }
 
 pub(crate) struct RandomChooser {}
 
 impl<T: Clone> Chooser<T> for RandomChooser {
-    fn choose(&self, iterator: &Vec<T>) -> Option<T> {
+    fn choose(&self, iterator: &[T]) -> Option<T> {
         use rand::seq::IndexedRandom;
 
         iterator.choose(&mut rand::rng()).cloned()

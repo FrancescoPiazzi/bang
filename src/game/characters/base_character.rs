@@ -13,8 +13,6 @@ pub(crate) struct CharacterData {
     max_hp: u16,
     hp: u16,
     arrows: u16,
-
-    dice_roller: Option<DiceRoller>,
 }
 
 impl CharacterData {
@@ -24,7 +22,6 @@ impl CharacterData {
             hp: max_hp,
             alive: true,
             arrows: 0,
-            dice_roller: Option::None,
         }
     }
 
@@ -54,6 +51,10 @@ impl CharacterData {
 
     pub(crate) fn is_alive(&self) -> bool {
         self.alive
+    }
+
+    pub(crate) fn set_alive(&mut self, alive: bool) {
+        self.alive = alive;
     }
 }
 

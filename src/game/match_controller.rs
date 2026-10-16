@@ -9,6 +9,7 @@ use crate::{
         dice::{chooser::RandomChooser, dice_roller::DiceRoller, die_face::DieFace},
         settings::Settings,
         shuffler::Shuffler,
+        utils,
     },
     players::{actor::Actor, player::Player},
 };
@@ -40,12 +41,10 @@ impl MatchController {
             .collect();
 
         // rule 2.5
-        // TODO: an index is annoying to compute and there's no way to check its validity at compile time
-        // use an infinite iterator created with .cycle() over the players instead
         let first_turn_index = players
             .iter()
             .enumerate()
-            .filter(|(_i, player)| player.role == Role::SHERIFF)
+            .filter(|(_i, player)| player.role == Role::Sheriff)
             .map(|(i, _player)| i)
             .next()
             .unwrap_or_else(|| {
@@ -72,14 +71,13 @@ impl MatchController {
             );
         }
 
-        let mut res = Vec::from(
+        let mut res =
             characters
                 .into_iter()
                 .cycle()
                 .take(n_players)
                 .map(|character| Archetype::new(character))
-                .collect::<Vec<_>>(),
-        );
+                .collect::<Vec<_>>();
 
         shuffler.shuffle_characters(&mut res);
         res
@@ -94,25 +92,8 @@ impl MatchController {
     }
 
     // executes the turn of the current player, recomputes the current player at the end
-    pub(crate) fn turn(&mut self) {
-        // get player for this turn
-        /*
-        let current_player_probably = self.players.get_mut(self.active_turn_index);
-
-        let current_player = if let Some(player) = current_player_probably {
-            player
-        } else {
-            error!(
-                "Invalid active turn index (index: {}, players: {}), setting it to 0",
-                self.active_turn_index,
-                self.players.len()
-            );
-            self.active_turn_index = 0;
-            self.players.get_mut(0).unwrap()
-        };
-
-        let current_character: &mut Box<dyn PlayableCharacter + 'static> = &mut current_player.character;
-        let current_actor: &mut Box<dyn Actor<'a> + 'static> = &mut current_player.actor;*/
+    pub(crate) fn turn(&mut self) -> Result<Option<Role>, ()> {
+        self.get_current_character_mut().start_turn();
 
         // get the dice that player has to throw and build a dice roller object with them
         let dice_faces = self.get_current_character().get_dice_faces();
@@ -141,9 +122,9 @@ impl MatchController {
                 for combo in self.get_current_character().get_dice_combos() {
                     if combo.is_triggered(&dice_roll) {
                         for action in combo.actions {
-                            self.resolve_action(action);
-                            if self.is_match_terminated() {
-                                return;
+                            self.resolve_action(action)?;
+                            if let Some(winner) = self.is_match_terminated() {
+                                return Ok(Some(winner));
                             }
                         }
                     }
@@ -161,19 +142,19 @@ impl MatchController {
                     self.resolve_action(Action::new(
                         ActionType::Damage(DamageType::Bullet, 1),
                         ActionRange::ExactDistance(1),
-                    ));
+                    ))?;
                 }
                 DieFace::Shoot2 => {
                     self.resolve_action(Action::new(
                         ActionType::Damage(DamageType::Bullet, 1),
                         ActionRange::ExactDistance(2),
-                    ));
+                    ))?;
                 }
                 DieFace::Beer => {
-                    self.resolve_action(Action::new(ActionType::Heal(1), ActionRange::Anyone));
+                    self.resolve_action(Action::new(ActionType::Heal(1), ActionRange::Anyone))?;
                 }
                 DieFace::Arrow => {
-                    self.resolve_action(Action::new(ActionType::GiveArrows(1), ActionRange::Myself));
+                    self.resolve_action(Action::new(ActionType::GiveArrows(1), ActionRange::Myself))?;
                 }
                 DieFace::Dynamite => {}
                 DieFace::Gatling => {}
@@ -183,35 +164,55 @@ impl MatchController {
                     self.resolve_action(Action::new(
                         ActionType::Damage(DamageType::Bullet, 1),
                         ActionRange::DistanceRange(1, 2),
-                    ));
+                    ))?;
                 }
                 DieFace::Shoot2or3 => {
                     self.resolve_action(Action::new(
                         ActionType::Damage(DamageType::Bullet, 1),
                         ActionRange::DistanceRange(1, 2),
-                    ));
+                    ))?;
                 }
             };
 
-            if self.is_match_terminated() {
-                return;
+            if let Some(winner) = self.is_match_terminated() {
+                return Ok(Some(winner));
             }
         }
 
+        // end turn if still alive
+        if self.get_current_character().is_alive() {
+            self.get_current_character_mut().end_turn();
+        }
+
+        // advance active turn index
         self.active_turn_index += 1;
+        let mut iterations = 0;
+
         // a bit extra but this handles increasing the turn index by more than one
         // in order to skip the next player's turn if it's ever needed.
-        while self.active_turn_index >= self.players.len() {
-            self.active_turn_index -= self.players.len();
+        while self.active_turn_index >= self.players.len() || !self.get_current_character().is_alive() {
+            self.active_turn_index += 1;
+            if self.active_turn_index >= self.players.len() {
+                self.active_turn_index -= self.players.len();
+            }
+
+            // quick check to not get stuck in the loop
+            iterations += 1;
+            if iterations > self.players.len() {
+                error!("Cannot find next player to give turn to, match should have ended");
+                break;
+            }
         }
+
+        Ok(None)
     }
 
     fn get_current_character(&self) -> &Box<dyn PlayableCharacter> {
-        &self.get_current_player().get_character()
+        self.get_current_player().get_character()
     }
 
     fn get_current_actor(&self) -> &Box<dyn Actor> {
-        &self.get_current_player().get_actor()
+        self.get_current_player().get_actor()
     }
 
     fn get_current_player(&self) -> &Player {
@@ -246,26 +247,22 @@ impl MatchController {
         }
     }
 
-    fn resolve_action(&mut self, action: Action) {
+    fn resolve_action(&mut self, action: Action) -> Result<(), ()> {
         match action.action_type {
             ActionType::Damage(damage_type, amount) => {
-                let options = self.get_target_options(action.action_range);
-                let target_idx = self
-                    .get_current_actor()
-                    .choose_target(&options, &ActionType::Damage(DamageType::Bullet, amount));
-                // TODO: validate index
-                let target = self.players[target_idx].get_character_mut();
-                target.take_damage(amount, damage_type)
+                if let Ok(target) = self.get_target(action) {
+                    target.take_damage(amount, damage_type);
+                } else {
+                    return Err(());
+                }
             }
 
             ActionType::Heal(amount) => {
-                let options = self.get_target_options(action.action_range);
-                let target_idx = self
-                    .get_current_actor()
-                    .choose_target(&options, &ActionType::Heal(amount));
-                // TODO: validate index
-                let target = self.players[target_idx].get_character_mut();
-                target.heal(amount)
+                if let Ok(target) = self.get_target(action) {
+                    target.heal(amount);
+                } else {
+                    return Err(());
+                }
             }
 
             ActionType::GiveArrows(amount) => {
@@ -275,27 +272,62 @@ impl MatchController {
                 self.get_current_character_mut().discard_all_arrows();
             }
         }
+        Ok(())
     }
 
-    // TODO: return Option<Vec<Roles that won>>
-    fn is_match_terminated(&self) -> bool {
-        // sheriff is dead
-        let sheriff_probably = self.players.iter().filter(|player| player.role == Role::SHERIFF).next();
+    // requests the current actor for a target, giving it the action to perform, and validates the response
+    fn get_target(&mut self, action: Action) -> Result<&mut Box<dyn PlayableCharacter>, ()> {
+        let options = self.get_target_options(action.action_range);
+
+        let target_idx = self.get_current_actor().choose_target(&options, &action.action_type);
+
+        if !utils::validate_index(target_idx as i64, &self.players) {
+            match self.settings.invalid_action_policy {
+                super::settings::InvalidActionPolicy::Ignore => return Err(()),
+                super::settings::InvalidActionPolicy::MarkAsDead => {
+                    self.get_current_character_mut().set_alive(false);
+                    return Err(());
+                }
+            }
+        }
+
+        Ok(self.players[target_idx].get_character_mut())
+    }
+
+    // returns Some(Role) if Role has won, None if match has not ended. If Sheriff / Deputy win, the returned Role is Sheriff
+    fn is_match_terminated(&self) -> Option<Role> {
+        // check if sheriff is dead
+        let sheriff_probably = self.players.iter().filter(|player| player.role == Role::Sheriff).next();
 
         let Some(sheriff) = sheriff_probably else {
             error!("Failed to find the sheriff, pretend it never existed and don't end the match");
-            return false;
+            return None;
         };
 
         if !sheriff.character.is_alive() {
-            return true;
+            let any_outlaw_alive = self
+                .players
+                .iter()
+                .filter(|player| player.role == Role::Outlaw)
+                .any(|player| player.get_character().is_alive());
+            if any_outlaw_alive {
+                return Some(Role::Outlaw);
+            } else {
+                return Some(Role::Renegade);
+            }
         }
 
-        // only sheriff and deputy are left
-        self.players
+        let only_good_guys_left = self
+            .players
             .iter()
-            .filter(|player| player.role != Role::SHERIFF && player.role != Role::DEPUTY)
-            .all(|player| player.character.is_alive())
+            .filter(|player| player.role != Role::Sheriff && player.role != Role::Deputy)
+            .all(|player| player.get_character().is_alive());
+
+        if only_good_guys_left {
+            Some(Role::Sheriff)
+        } else {
+            None
+        }
     }
 }
 
@@ -316,10 +348,10 @@ mod tests {
             actors,
             Box::new(MockShuffler),
         ));
-        assert_eq!(*roles.get(&Role::SHERIFF).unwrap(), 1);
-        assert_eq!(*roles.get(&Role::DEPUTY).unwrap(), 1);
-        assert_eq!(*roles.get(&Role::OUTLAW).unwrap(), 2);
-        assert_eq!(*roles.get(&Role::RENEGADE).unwrap(), 1);
+        assert_eq!(*roles.get(&Role::Sheriff).unwrap(), 1);
+        assert_eq!(*roles.get(&Role::Deputy).unwrap(), 1);
+        assert_eq!(*roles.get(&Role::Outlaw).unwrap(), 2);
+        assert_eq!(*roles.get(&Role::Renegade).unwrap(), 1);
 
         let actors = generate_base_bot_actors(8);
         let roles = count_roles(&MatchController::new(
@@ -327,10 +359,10 @@ mod tests {
             actors,
             Box::new(MockShuffler),
         ));
-        assert_eq!(*roles.get(&Role::SHERIFF).unwrap(), 1);
-        assert_eq!(*roles.get(&Role::DEPUTY).unwrap(), 2);
-        assert_eq!(*roles.get(&Role::OUTLAW).unwrap(), 3);
-        assert_eq!(*roles.get(&Role::RENEGADE).unwrap(), 2);
+        assert_eq!(*roles.get(&Role::Sheriff).unwrap(), 1);
+        assert_eq!(*roles.get(&Role::Deputy).unwrap(), 2);
+        assert_eq!(*roles.get(&Role::Outlaw).unwrap(), 3);
+        assert_eq!(*roles.get(&Role::Renegade).unwrap(), 2);
 
         let actors = generate_base_bot_actors(10);
         let roles = count_roles(&MatchController::new(
@@ -338,10 +370,10 @@ mod tests {
             actors,
             Box::new(MockShuffler),
         ));
-        assert_eq!(*roles.get(&Role::SHERIFF).unwrap(), 1);
-        assert_eq!(*roles.get(&Role::DEPUTY).unwrap(), 3);
-        assert_eq!(*roles.get(&Role::OUTLAW).unwrap(), 4);
-        assert_eq!(*roles.get(&Role::RENEGADE).unwrap(), 2);
+        assert_eq!(*roles.get(&Role::Sheriff).unwrap(), 1);
+        assert_eq!(*roles.get(&Role::Deputy).unwrap(), 3);
+        assert_eq!(*roles.get(&Role::Outlaw).unwrap(), 4);
+        assert_eq!(*roles.get(&Role::Renegade).unwrap(), 2);
     }
 
     // returns a HashMap mapping role to how many players have that role in the current controller
@@ -359,11 +391,11 @@ mod tests {
     fn test_sheriff_starts() {
         let actors = generate_base_bot_actors(5);
         let ctr = MatchController::new(Settings::default(), actors, Box::new(MockShuffler));
-        assert_eq!(ctr.players[ctr.active_turn_index].role, Role::SHERIFF);
+        assert_eq!(ctr.players[ctr.active_turn_index].role, Role::Sheriff);
 
         let actors = generate_base_bot_actors(5);
         let ctr = MatchController::new(Settings::default(), actors, Box::new(ReverseShuffler));
-        assert_eq!(ctr.players[ctr.active_turn_index].role, Role::SHERIFF);
+        assert_eq!(ctr.players[ctr.active_turn_index].role, Role::Sheriff);
     }
 
     fn generate_base_bot_actors<'a>(n: usize) -> Vec<Box<dyn Actor>> {

@@ -14,6 +14,10 @@ impl BaseBot {
 }
 
 impl Actor for BaseBot {
+    fn get_name(&self) -> String {
+        "beep bop, base bot".to_string()
+    }
+
     fn receive_match_state(&mut self, _me: &Box<dyn PlayableCharacter>, _everyone: &Vec<&Box<dyn PlayableCharacter>>) {}
 
     fn throw_dice_again(&mut self, _dice_roll: &DiceRollResult) -> bool {

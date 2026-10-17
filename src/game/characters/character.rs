@@ -39,10 +39,6 @@ pub(crate) trait PlayableCharacter {
         settings_max_rerolls
     }
 
-    // consider mostly resolving this in the controller, with each PlayableCharacter only exposing methods that differentiate
-    // behaviour between eachother
-    fn handle_dice_roll(&mut self, roll: &DiceRollResult);
-
     fn take_damage(&mut self, amount: u16, _damage_type: DamageType);
 
     fn heal(&mut self, amount: u16);

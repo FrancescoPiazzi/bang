@@ -18,7 +18,7 @@ use crate::{
     players::{actor::Actor, player::Player},
 };
 
-use log::{error, info};
+use log::{error, info, debug, trace};
 
 pub(crate) struct MatchController {
     settings: Settings,
@@ -88,9 +88,13 @@ impl MatchController {
 
     // executes the turn of the current player, recomputes the current player at the end
     pub(crate) fn turn(&mut self) -> Result<Option<Role>, TurnError> {
+        debug!("new turn, players: \n{:?}", self.players);
+
         self.get_current_character_mut().start_turn();
 
         let dice_roll_phase_result = self.dice_roll_phase()?;
+
+        trace!("dice roll phase result: {:?}", dice_roll_phase_result);
 
         match dice_roll_phase_result {
             DiceRollPhaseResult::Winner(winner) => {
@@ -314,6 +318,8 @@ impl MatchController {
 
     // returns Some(Role) if Role has won, None if match has not ended. If Sheriff / Deputy win, the returned Role is Sheriff
     fn is_match_terminated(&self) -> Option<Role> {
+        trace!("checking if match has ended");
+        
         // check if sheriff is dead
         let sheriff_probably = self.players.iter().filter(|player| player.role == Role::Sheriff).next();
 
@@ -323,14 +329,19 @@ impl MatchController {
         };
 
         if !sheriff.character.is_alive() {
+            trace!("sheriff is dead, checking if there are any outlaws");
             let any_outlaw_alive = self
                 .players
                 .iter()
                 .filter(|player| player.role == Role::Outlaw)
                 .any(|player| player.get_character().is_alive());
             if any_outlaw_alive {
+                trace!("there are, outlaws win");
                 return Some(Role::Outlaw);
             } else {
+                trace!("there are not, renegades win");
+                // TODO if I'm not mistaken, if there are more than one renegade alive, the outlaws win by the rules
+                // this is both to verify and to think because it seems like a pretty stupid rule, perhaps add it to the settings
                 return Some(Role::Renegade);
             }
         }
@@ -338,20 +349,26 @@ impl MatchController {
         let only_good_guys_left = self
             .players
             .iter()
-            .filter(|player| player.role != Role::Sheriff && player.role != Role::Deputy)
-            .all(|player| player.get_character().is_alive());
-
-        if only_good_guys_left { Some(Role::Sheriff) } else { None }
+            .filter(|player| player.get_character().is_alive())
+            .all(|player| player.role != Role::Sheriff && player.role != Role::Deputy);
+        
+        if only_good_guys_left {
+            trace!("sheriffs and deputies are the only ones alive"); 
+            Some(Role::Sheriff) 
+        } else {
+            trace!("no winner yet"); 
+            None 
+        }
     }
 }
 
 #[derive(Debug)]
 pub(crate) enum TurnError {
     CannotFindNext,
-    InvalidAction,
     InvalidTarget(usize),
 }
 
+#[derive(Debug)]
 enum DiceRollPhaseResult {
     Roll(DiceRollResult),
     // it is possible for the match to terminate during a dice roll phase,

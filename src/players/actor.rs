@@ -5,6 +5,8 @@ use crate::game::dice::dice_roller::DiceRollResult;
 // represents a person or bot playing the game.
 // an actor defines the decision making process of a player during a match.
 pub(crate) trait Actor {
+    fn get_name(&self) -> String;
+
     // update sent by the controller, does not require an answer
     fn receive_match_state(&mut self, me: &Box<dyn PlayableCharacter>, everyone: &Vec<&Box<dyn PlayableCharacter>>);
 

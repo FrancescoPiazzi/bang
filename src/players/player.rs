@@ -1,3 +1,5 @@
+use std::fmt::Debug;
+
 use crate::game::characters::character::PlayableCharacter;
 use crate::game::role::Role;
 use crate::players::actor::Actor;
@@ -43,5 +45,16 @@ impl Player {
 
     pub(crate) fn get_actor_mut(&mut self) -> &mut Box<dyn Actor> {
         &mut self.actor
+    }
+}
+
+impl Debug for Player {
+    fn fmt(&self, fmt: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
+        fmt.debug_struct("Player")
+        .field("Role", &self.role)
+        .field("Actor", &self.actor.get_name())
+        .field("Alive", &(if self.character.is_alive() {"✅"} else {"❌"}))
+        .finish()?;
+        fmt.write_str("\n")
     }
 }

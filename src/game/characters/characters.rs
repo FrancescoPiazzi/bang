@@ -1,4 +1,3 @@
-use crate::game::dice::dice_roller::DiceRollResult;
 use crate::game::{characters::base_character::CharacterData, damage_type::DamageType};
 
 use super::character::PlayableCharacter;
@@ -8,8 +7,6 @@ pub(crate) struct SuzieLafette {
 }
 
 impl PlayableCharacter for SuzieLafette {
-    fn handle_dice_roll(&mut self, _: &DiceRollResult) {}
-
     fn take_damage(&mut self, amount: u16, damage_type: DamageType) {
         self.base_character.take_damage(amount, damage_type);
     }

@@ -10,7 +10,7 @@ use crate::game::settings::*;
 use crate::players::actor::Actor;
 use crate::players::bots::base_bot::BaseBot;
 
-use log::{error, trace};
+use log::{error, info, trace};
 
 pub struct GameController {
     dice_chooser: RandomChooser,
@@ -38,7 +38,7 @@ impl GameController {
             last_turn = match_controller.turn();
         }
 
-        println!("Game over: {:?}", last_turn);
+        info!("Game over: {:?}", last_turn);
     }
 
     pub fn load_settings_from_file(name: Option<String>) -> Settings {

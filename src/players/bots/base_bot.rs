@@ -5,7 +5,13 @@ use crate::players::actor::Actor;
 
 // The simplest bot possible, doesn't care about game state, never rerolls dice, and always selects the first option available for any targetting choice
 #[derive(Clone)]
-pub(crate) struct BaseBot {}
+pub struct BaseBot {}
+
+impl BaseBot {
+    pub fn new() -> BaseBot {
+        BaseBot {  }
+    }
+}
 
 impl Actor for BaseBot {
     fn receive_match_state(&mut self, _me: &Box<dyn PlayableCharacter>, _everyone: &Vec<&Box<dyn PlayableCharacter>>) {}

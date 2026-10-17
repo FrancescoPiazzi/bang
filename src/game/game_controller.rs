@@ -4,27 +4,44 @@ use std::fs::File;
 use std::io::Read;
 use std::path::Path;
 
-use crate::game::dice::chooser::RandomChooser;
+use crate::game::{dice::chooser::RandomChooser, shuffler::RandomShuffler};
+use crate::game::match_controller::MatchController;
 use crate::game::settings::*;
+use crate::players::actor::Actor;
+use crate::players::bots::base_bot::BaseBot;
 
 use log::{error, trace};
 
-struct GameController {
+pub struct GameController {
     dice_chooser: RandomChooser,
 }
 
 impl GameController {
-    pub(crate) fn run_match(&mut self) {
-        let settings = Self::load_settings_from_file(None);
-
-        // let match_controller = MatchController::new(
-        //     settings,
-        //     self.dice_chooser,
-        //
-        // );
+    pub fn new() -> GameController {
+        GameController { dice_chooser: RandomChooser { } }
     }
 
-    pub(crate) fn load_settings_from_file(name: Option<String>) -> Settings {
+    pub fn run_match(&mut self) {
+        let settings = Self::load_settings_from_file(None);
+
+        // sketch, to be written properly
+        let actors = vec![BaseBot::new(); 5].into_iter().map(|a| Box::new(a) as Box<dyn Actor>).collect();
+
+        let mut match_controller = MatchController::new(
+            settings,
+            actors,
+            Box::new(RandomShuffler)
+        );
+
+        let mut last_turn= Ok(None);
+        while last_turn.as_ref().is_ok_and(|inner| inner.is_none()) {
+            last_turn = match_controller.turn();
+        }
+
+        println!("Game over: {:?}", last_turn);
+    }
+
+    pub fn load_settings_from_file(name: Option<String>) -> Settings {
         if let Some(name_inner) = name {
             // not gonna bother with combining paths with PathBuf
             let path_str = String::from("settings_profiles/") + &name_inner;

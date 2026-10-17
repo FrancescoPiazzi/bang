@@ -11,7 +11,6 @@ use crate::{
             dice_roller::{DiceRollResult, DiceRoller},
             die_face::DieFace,
         },
-        match_controller::DiceRollPhaseResult::Winner,
         settings::Settings,
         shuffler::Shuffler,
         utils,
@@ -346,6 +345,7 @@ impl MatchController {
     }
 }
 
+#[derive(Debug)]
 pub(crate) enum TurnError {
     CannotFindNext,
     InvalidAction,

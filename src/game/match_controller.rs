@@ -6,7 +6,12 @@ use crate::{
         action::{Action, ActionRange, ActionType},
         characters::character::{Archetype, CharacterType, PlayableCharacter},
         damage_type::DamageType,
-        dice::{chooser::RandomChooser, dice_roller::DiceRoller, die_face::DieFace},
+        dice::{
+            chooser::RandomChooser,
+            dice_roller::{DiceRollResult, DiceRoller},
+            die_face::DieFace,
+        },
+        match_controller::DiceRollPhaseResult::Winner,
         settings::Settings,
         shuffler::Shuffler,
         utils,
@@ -71,30 +76,45 @@ impl MatchController {
             );
         }
 
-        let mut res =
-            characters
-                .into_iter()
-                .cycle()
-                .take(n_players)
-                .map(|character| Archetype::new(character))
-                .collect::<Vec<_>>();
+        let mut res = characters
+            .into_iter()
+            .cycle()
+            .take(n_players)
+            .map(|character| Archetype::new(character))
+            .collect::<Vec<_>>();
 
         shuffler.shuffle_characters(&mut res);
         res
     }
 
-    // returns the possible target options for the currently active player
-    pub(crate) fn get_target_options(&self, range: ActionRange) -> Vec<&Box<dyn PlayableCharacter>> {
-        ActionRange::get_targets(&self.players, self.active_turn_index, range)
-            .iter_mut()
-            .map(|player| player.get_character())
-            .collect()
-    }
-
     // executes the turn of the current player, recomputes the current player at the end
-    pub(crate) fn turn(&mut self) -> Result<Option<Role>, ()> {
+    pub(crate) fn turn(&mut self) -> Result<Option<Role>, TurnError> {
         self.get_current_character_mut().start_turn();
 
+        let dice_roll_phase_result = self.dice_roll_phase()?;
+
+        match dice_roll_phase_result {
+            DiceRollPhaseResult::Winner(winner) => {
+                return Ok(Some(winner));
+            }
+            DiceRollPhaseResult::Roll(dice_roll) => {
+                let result = self.dice_resolution_phase(dice_roll)?;
+                if let Some(_) = result {
+                    return Ok(result);
+                }
+
+                if self.get_current_character().is_alive() {
+                    self.get_current_character_mut().end_turn();
+                }
+
+                self.advance_turn_idx_phase()?;
+
+                Ok(None)
+            }
+        }
+    }
+
+    fn dice_roll_phase(&mut self) -> Result<DiceRollPhaseResult, TurnError> {
         // get the dice that player has to throw and build a dice roller object with them
         let dice_faces = self.get_current_character().get_dice_faces();
         let mut dice_roller = DiceRoller::new(
@@ -112,7 +132,7 @@ impl MatchController {
         let mut dice_roll = dice_roller.throw(&mut self.dice_chooser);
 
         // handle eventual rerolls
-        let mut rerolls_left = self.get_current_character().get_max_rerolls(self.settings.max_rerolls);
+        let mut rerolls_left: i16 = self.get_current_character().get_max_rerolls(self.settings.max_rerolls) as i16;
         while rerolls_left > 0 {
             if self.get_current_actor_mut().throw_dice_again(&dice_roll) {
                 dice_roller.update_dice_locks(self.get_current_actor_mut().get_dice_locks(&dice_roll));
@@ -121,11 +141,21 @@ impl MatchController {
                 // handle combos
                 for combo in self.get_current_character().get_dice_combos() {
                     if combo.is_triggered(&dice_roll) {
-                        for action in combo.actions {
-                            self.resolve_action(action)?;
-                            if let Some(winner) = self.is_match_terminated() {
-                                return Ok(Some(winner));
+                        for action in combo.get_actions() {
+                            let resolve_result = self.resolve_action(action);
+
+                            match resolve_result {
+                                Ok(None) => {}
+                                Ok(Some(winner)) => {
+                                    return Ok(DiceRollPhaseResult::Winner(winner));
+                                }
+                                Err(error) => {
+                                    return Err(error);
+                                }
                             }
+                        }
+                        if combo.end_rerolls_if_triggered() {
+                            rerolls_left = 0;
                         }
                     }
                 }
@@ -135,56 +165,46 @@ impl MatchController {
             rerolls_left -= 1;
         }
 
-        // resolve dice, following the order in rule 4
+        Ok(DiceRollPhaseResult::Roll(dice_roll))
+    }
+
+    // resolve dice, following the order in rule 4
+    fn dice_resolution_phase(&mut self, dice_roll: DiceRollResult) -> Result<Option<Role>, TurnError> {
         for die_face in dice_roll.into_iter() {
-            match die_face {
-                DieFace::Shoot1 => {
-                    self.resolve_action(Action::new(
-                        ActionType::Damage(DamageType::Bullet, 1),
-                        ActionRange::ExactDistance(1),
-                    ))?;
-                }
-                DieFace::Shoot2 => {
-                    self.resolve_action(Action::new(
-                        ActionType::Damage(DamageType::Bullet, 1),
-                        ActionRange::ExactDistance(2),
-                    ))?;
-                }
-                DieFace::Beer => {
-                    self.resolve_action(Action::new(ActionType::Heal(1), ActionRange::Anyone))?;
-                }
-                DieFace::Arrow => {
-                    self.resolve_action(Action::new(ActionType::GiveArrows(1), ActionRange::Myself))?;
-                }
-                DieFace::Dynamite => {}
-                DieFace::Gatling => {}
-                DieFace::NonBlockingDynamite => {}
-                DieFace::HealingGatling => {}
-                DieFace::Shoot1or2 => {
-                    self.resolve_action(Action::new(
-                        ActionType::Damage(DamageType::Bullet, 1),
-                        ActionRange::DistanceRange(1, 2),
-                    ))?;
-                }
-                DieFace::Shoot2or3 => {
-                    self.resolve_action(Action::new(
-                        ActionType::Damage(DamageType::Bullet, 1),
-                        ActionRange::DistanceRange(1, 2),
-                    ))?;
-                }
+            let resolve_result = match die_face {
+                DieFace::Shoot1 => self.resolve_action(Action::new(
+                    ActionType::Damage(DamageType::Bullet, 1),
+                    ActionRange::ExactDistance(1),
+                ))?,
+                DieFace::Shoot2 => self.resolve_action(Action::new(
+                    ActionType::Damage(DamageType::Bullet, 1),
+                    ActionRange::ExactDistance(2),
+                ))?,
+                DieFace::Beer => self.resolve_action(Action::new(ActionType::Heal(1), ActionRange::Anyone))?,
+                DieFace::Arrow => self.resolve_action(Action::new(ActionType::GiveArrows(1), ActionRange::Myself))?,
+                DieFace::Dynamite => None,
+                DieFace::Gatling => None,
+                DieFace::NonBlockingDynamite => None,
+                DieFace::HealingGatling => None,
+                DieFace::Shoot1or2 => self.resolve_action(Action::new(
+                    ActionType::Damage(DamageType::Bullet, 1),
+                    ActionRange::DistanceRange(1, 2),
+                ))?,
+                DieFace::Shoot2or3 => self.resolve_action(Action::new(
+                    ActionType::Damage(DamageType::Bullet, 1),
+                    ActionRange::DistanceRange(1, 2),
+                ))?,
             };
 
-            if let Some(winner) = self.is_match_terminated() {
+            if let Some(winner) = resolve_result {
                 return Ok(Some(winner));
             }
         }
 
-        // end turn if still alive
-        if self.get_current_character().is_alive() {
-            self.get_current_character_mut().end_turn();
-        }
+        Ok(None)
+    }
 
-        // advance active turn index
+    fn advance_turn_idx_phase(&mut self) -> Result<(), TurnError> {
         self.active_turn_index += 1;
         let mut iterations = 0;
 
@@ -200,11 +220,19 @@ impl MatchController {
             iterations += 1;
             if iterations > self.players.len() {
                 error!("Cannot find next player to give turn to, match should have ended");
-                break;
+                return Err(TurnError::CannotFindNext);
             }
         }
 
-        Ok(None)
+        Ok(())
+    }
+
+    // returns the possible target options for the currently active player
+    fn get_target_options(&self, range: ActionRange) -> Vec<&Box<dyn PlayableCharacter>> {
+        ActionRange::get_targets(&self.players, self.active_turn_index, range)
+            .iter_mut()
+            .map(|player| player.get_character())
+            .collect()
     }
 
     fn get_current_character(&self) -> &Box<dyn PlayableCharacter> {
@@ -247,24 +275,14 @@ impl MatchController {
         }
     }
 
-    fn resolve_action(&mut self, action: Action) -> Result<(), ()> {
+    fn resolve_action(&mut self, action: Action) -> Result<Option<Role>, TurnError> {
         match action.action_type {
             ActionType::Damage(damage_type, amount) => {
-                if let Ok(target) = self.get_target(action) {
-                    target.take_damage(amount, damage_type);
-                } else {
-                    return Err(());
-                }
+                self.get_target(action)?.take_damage(amount, damage_type);
             }
-
             ActionType::Heal(amount) => {
-                if let Ok(target) = self.get_target(action) {
-                    target.heal(amount);
-                } else {
-                    return Err(());
-                }
+                self.get_target(action)?.heal(amount);
             }
-
             ActionType::GiveArrows(amount) => {
                 self.get_current_character_mut().give_arrows(amount);
             }
@@ -272,21 +290,22 @@ impl MatchController {
                 self.get_current_character_mut().discard_all_arrows();
             }
         }
-        Ok(())
+
+        Ok(self.is_match_terminated())
     }
 
     // requests the current actor for a target, giving it the action to perform, and validates the response
-    fn get_target(&mut self, action: Action) -> Result<&mut Box<dyn PlayableCharacter>, ()> {
+    fn get_target(&mut self, action: Action) -> Result<&mut Box<dyn PlayableCharacter>, TurnError> {
         let options = self.get_target_options(action.action_range);
 
         let target_idx = self.get_current_actor().choose_target(&options, &action.action_type);
 
         if !utils::validate_index(target_idx as i64, &self.players) {
             match self.settings.invalid_action_policy {
-                super::settings::InvalidActionPolicy::Ignore => return Err(()),
+                super::settings::InvalidActionPolicy::Ignore => return Err(TurnError::InvalidTarget(target_idx)),
                 super::settings::InvalidActionPolicy::MarkAsDead => {
                     self.get_current_character_mut().set_alive(false);
-                    return Err(());
+                    return Err(TurnError::InvalidTarget(target_idx));
                 }
             }
         }
@@ -323,12 +342,21 @@ impl MatchController {
             .filter(|player| player.role != Role::Sheriff && player.role != Role::Deputy)
             .all(|player| player.get_character().is_alive());
 
-        if only_good_guys_left {
-            Some(Role::Sheriff)
-        } else {
-            None
-        }
+        if only_good_guys_left { Some(Role::Sheriff) } else { None }
     }
+}
+
+pub(crate) enum TurnError {
+    CannotFindNext,
+    InvalidAction,
+    InvalidTarget(usize),
+}
+
+enum DiceRollPhaseResult {
+    Roll(DiceRollResult),
+    // it is possible for the match to terminate during a dice roll phase,
+    // for example a gatling is rolled and it kills the sheriff, or a 1hp sheriff rolls three dynamites
+    Winner(Role),
 }
 
 #[cfg(test)]

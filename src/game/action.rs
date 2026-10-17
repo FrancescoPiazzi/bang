@@ -3,9 +3,9 @@ use std::collections::HashSet;
 use crate::game::utils;
 use crate::game::{characters::character::PlayableCharacter, damage_type::DamageType, dice::die_face::DieFace};
 
-// an action a player takes that doesn't have a specific target,
-// since this doesn't need to hold a reference to a character,
-// it doesn't pollute outside code with lifetimes, also allows for multiple targets
+// an action a player takes, does not specify a target, since a target would mean holding a reference
+// and that would pollute a lot of code with lifetimes
+#[derive(Clone, Copy, Debug)]
 pub(crate) struct Action {
     pub(crate) action_type: ActionType,
     pub(crate) action_range: ActionRange,
@@ -34,7 +34,7 @@ pub(crate) struct DieLockUpdate {
     pub(crate) lock_unlock: LockUnlock,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug)]
 pub(crate) enum ActionType {
     Damage(DamageType, u16),
     Heal(u16),
@@ -42,12 +42,7 @@ pub(crate) enum ActionType {
     DiscardAllArrows,
 }
 
-// pub(crate) enum ActionSource<'ch> {
-//     Pile,   // interactions with the pile, i.e. healing
-//     Character(&'ch dyn PlayableCharacter),  // make somone else the source of an action, no idea if this is ever needed
-// }
-
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug)]
 pub(crate) enum ActionRange {
     Myself,
     ExactDistance(usize), // used mainly when shooting
@@ -63,11 +58,7 @@ pub(crate) enum LockUnlock {
 }
 
 impl ActionRange {
-    pub(crate) fn get_targets<T>(
-        characters: &Vec<T>,
-        starting_point: usize,
-        action_range: ActionRange,
-    ) -> Vec<&T> {
+    pub(crate) fn get_targets<T>(characters: &Vec<T>, starting_point: usize, action_range: ActionRange) -> Vec<&T> {
         match action_range {
             ActionRange::Myself => Vec::from([&characters[starting_point]]),
 

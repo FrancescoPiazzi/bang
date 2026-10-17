@@ -67,7 +67,7 @@ pub(crate) enum Archetype {
     SuzieLafette,
 }
 
-impl<'ch> Archetype {
+impl Archetype {
     pub(crate) fn new(character_type: CharacterType) -> Box<dyn PlayableCharacter> {
         match character_type {
             CharacterType::SuzieLafette => Box::new(SuzieLafette {
@@ -94,9 +94,8 @@ impl<'ch> Archetype {
                 vec![Action::new(
                     ActionType::Damage(DamageType::Dynamite, 1),
                     ActionRange::Myself,
-                )
-                // TODO: if this combo is triggered, dice may not be rethrown
-                ],
+                )],
+                true, // rule 4.2.2
             ),
             DiceCombo::new(
                 [(DieFace::Gatling, 3)].into_iter().collect(),
@@ -104,6 +103,7 @@ impl<'ch> Archetype {
                     Action::new(ActionType::DiscardAllArrows, ActionRange::Myself),
                     Action::new(ActionType::Damage(DamageType::Gatling, 1), ActionRange::AnyoneButSelf),
                 ],
+                false,
             ),
         ]
     }

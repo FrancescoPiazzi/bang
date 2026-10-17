@@ -46,7 +46,10 @@ impl GameController {
             let settings: Settings = match serde_json::from_str(&s) {
                 Ok(settings) => settings,
                 Err(error) => {
-                    error!("incorrect format when loading settings: {}, loading defaults instead", error);
+                    error!(
+                        "incorrect format when loading settings: {}, loading defaults instead",
+                        error
+                    );
                     return Settings::default();
                 }
             };

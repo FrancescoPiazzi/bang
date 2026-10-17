@@ -6,14 +6,20 @@ use crate::game::action::Action;
 
 pub(crate) struct DiceCombo {
     requisite: HashMap<DieFace, usize>,
-    pub(crate) actions: Vec<Action>,
+    actions: Vec<Action>,
+    end_rerolls_if_triggered: bool,
 }
 
 impl DiceCombo {
-    pub(crate) fn new(hash_map: HashMap<DieFace, usize>, actions: Vec<Action>) -> DiceCombo {
+    pub(crate) fn new(
+        hash_map: HashMap<DieFace, usize>,
+        actions: Vec<Action>,
+        end_rerolls_if_triggered: bool,
+    ) -> DiceCombo {
         DiceCombo {
             requisite: hash_map,
             actions: actions,
+            end_rerolls_if_triggered: end_rerolls_if_triggered,
         }
     }
 
@@ -21,6 +27,14 @@ impl DiceCombo {
         self.requisite
             .iter()
             .all(|(face_required, count_required)| result.get(face_required) >= *count_required)
+    }
+
+    pub(crate) fn get_actions(&self) -> Vec<Action> {
+        self.actions.clone()
+    }
+
+    pub(crate) fn end_rerolls_if_triggered(&self) -> bool {
+        self.end_rerolls_if_triggered
     }
 }
 
@@ -35,10 +49,12 @@ mod tests {
         let combo1 = DiceCombo::new(
             HashMap::from([(DieFace::Gatling, 1), (DieFace::Arrow, 1), (DieFace::Beer, 1)]),
             vec![],
+            false,
         );
         let combo2 = DiceCombo::new(
             HashMap::from([(DieFace::Gatling, 3), (DieFace::Shoot1, 2), (DieFace::Shoot2, 1)]),
             vec![],
+            false,
         );
 
         let result1 = DiceRollResult::from(BTreeMap::from([

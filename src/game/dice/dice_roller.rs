@@ -58,7 +58,7 @@ impl DiceRoller {
         }
 
         trace!("🎲 dice thrown, result is: {:?}", result);
-        
+
         result
     }
 
